@@ -30,38 +30,71 @@ df = pd.read_csv(BESTAND)
 st.markdown("""
 <style>
 
+/* Background */
 .stApp {
-    background: linear-gradient(135deg, #06150f 0%, #0b2a1d 50%, #06150f 100%);
+    background: radial-gradient(circle at top, #0b2a1d, #06150f 70%);
 }
 
-h1, h2, h3 {
+/* Titles */
+h1 {
     color: #d4af37 !important;
+    font-weight: 800;
+    letter-spacing: 1px;
 }
 
-p, label, div {
-    color: white;
+h2, h3 {
+    color: #f5d77b !important;
 }
 
+/* Glass cards */
 .card {
-    background: rgba(15, 40, 25, 0.75);
-    border: 1px solid #d4af37;
-    border-radius: 16px;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(212,175,55,0.4);
+    border-radius: 18px;
     padding: 18px;
-    margin-bottom: 15px;
-    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    transition: 0.2s ease-in-out;
 }
 
+.card:hover {
+    transform: translateY(-2px);
+    border-color: #d4af37;
+}
+
+/* Buttons */
 .stButton > button {
     width: 100%;
-    background-color: #d4af37;
+    background: linear-gradient(135deg, #d4af37, #f5d77b);
     color: black;
-    font-weight: bold;
-    border-radius: 10px;
+    font-weight: 700;
+    border-radius: 12px;
     height: 45px;
+    border: none;
 }
 
 .stButton > button:hover {
-    background-color: #e8c766;
+    opacity: 0.9;
+    transform: scale(1.01);
+}
+
+/* Dataframes */
+[data-testid="stDataFrame"] {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* Metrics */
+div[data-testid="metric-container"] {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(212,175,55,0.3);
+    padding: 12px;
+    border-radius: 14px;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: #071a12;
 }
 
 </style>
@@ -188,7 +221,7 @@ elif menu == "👤 Spelers":
         )
 
 # =========================================================
-# RANKING
+# RANKING (UI UPGRADE)
 # =========================================================
 elif menu == "🏆 Ranking":
     st.title("🏆 Ranking")
@@ -209,14 +242,22 @@ elif menu == "🏆 Ranking":
 
     ranking = ranking.sort_values("Handicap", ascending=False)
 
-    st.subheader("🥇 Top 3")
+    # 🏆 PODIUM UI (UPDATED)
+    st.subheader("🏆 Podium")
+
+    medals = ["🥇", "🥈", "🥉"]
 
     cols = st.columns(3)
 
     for i in range(min(3, len(ranking))):
-        cols[i].metric(
-            ranking.iloc[i]["Speler"],
-            ranking.iloc[i]["Handicap"]
+        cols[i].markdown(
+            f"""
+            <div class="card">
+                <h2>{medals[i]} {ranking.iloc[i]['Speler']}</h2>
+                <h3>Handicap: {ranking.iloc[i]['Handicap']}</h3>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
 
     st.divider()
