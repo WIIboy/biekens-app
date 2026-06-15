@@ -25,20 +25,19 @@ if not os.path.exists(BESTAND):
 df = pd.read_csv(BESTAND)
 
 # ======================
-# CSS
+# CSS (PRO SPORT UI)
 # ======================
 st.markdown("""
 <style>
 
-/* Background */
 .stApp {
     background: radial-gradient(circle at top, #0b2a1d, #06150f 70%);
 }
 
-/* Titles */
+/* TITLES */
 h1 {
     color: #d4af37 !important;
-    font-weight: 800;
+    font-weight: 900;
     letter-spacing: 1px;
 }
 
@@ -46,53 +45,62 @@ h2, h3 {
     color: #f5d77b !important;
 }
 
-/* Glass cards */
+/* CARD */
 .card {
-    background: rgba(255,255,255,0.05);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(212,175,55,0.4);
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(212,175,55,0.35);
     border-radius: 18px;
     padding: 18px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-    transition: 0.2s ease-in-out;
+    box-shadow: 0 10px 35px rgba(0,0,0,0.4);
+    transition: all 0.25s ease;
 }
 
 .card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-4px) scale(1.01);
     border-color: #d4af37;
 }
 
-/* Buttons */
+/* AVATAR */
+.avatar {
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #d4af37, #f5d77b);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    color: black;
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+/* BUTTONS */
 .stButton > button {
     width: 100%;
     background: linear-gradient(135deg, #d4af37, #f5d77b);
     color: black;
-    font-weight: 700;
+    font-weight: 800;
     border-radius: 12px;
     height: 45px;
     border: none;
 }
 
 .stButton > button:hover {
-    opacity: 0.9;
-    transform: scale(1.01);
+    transform: scale(1.02);
+    opacity: 0.95;
 }
 
-/* Dataframes */
-[data-testid="stDataFrame"] {
-    border-radius: 12px;
-    overflow: hidden;
-}
-
-/* Metrics */
+/* METRICS */
 div[data-testid="metric-container"] {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(212,175,55,0.3);
-    padding: 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(212,175,55,0.25);
     border-radius: 14px;
+    padding: 12px;
 }
 
-/* Sidebar */
+/* SIDEBAR */
 section[data-testid="stSidebar"] {
     background: #071a12;
 }
@@ -111,7 +119,7 @@ def bereken_handicap(row):
     return round(moyenne * 25), moyenne
 
 # ======================
-# SIDEBAR NAV
+# SIDEBAR
 # ======================
 menu = st.sidebar.radio("📊 Navigatie", ["🏠 Home", "👤 Spelers", "🏆 Ranking"])
 
@@ -123,21 +131,28 @@ if menu == "🏠 Home":
 
     col1, col2, col3 = st.columns(3)
 
-    col1.markdown('<div class="card">', unsafe_allow_html=True)
-    col1.metric("Aantal spelers", len(df))
-    col1.markdown('</div>', unsafe_allow_html=True)
+    col1.markdown(f"""
+    <div class="card">
+        <h3>👥 Spelers</h3>
+        <h1>{len(df)}</h1>
+    </div>
+    """, unsafe_allow_html=True)
 
-    col2.markdown('<div class="card">', unsafe_allow_html=True)
-    col2.metric("Wedstrijden", int(df["Wedstrijden"].sum()))
-    col2.markdown('</div>', unsafe_allow_html=True)
+    col2.markdown(f"""
+    <div class="card">
+        <h3>🎮 Wedstrijden</h3>
+        <h1>{int(df["Wedstrijden"].sum())}</h1>
+    </div>
+    """, unsafe_allow_html=True)
 
-    club_moy = (
-        df["Totaal Punten"].sum() / max(1, df["Totaal Beurten"].sum())
-    )
+    club_moy = df["Totaal Punten"].sum() / max(1, df["Totaal Beurten"].sum())
 
-    col3.markdown('<div class="card">', unsafe_allow_html=True)
-    col3.metric("Club moyenne", f"{club_moy:.3f}")
-    col3.markdown('</div>', unsafe_allow_html=True)
+    col3.markdown(f"""
+    <div class="card">
+        <h3>📊 Club moyenne</h3>
+        <h1>{club_moy:.3f}</h1>
+    </div>
+    """, unsafe_allow_html=True)
 
 # =========================================================
 # SPELERS
@@ -215,13 +230,10 @@ elif menu == "👤 Spelers":
         st.metric("Moyenne", f"{moyenne:.3f}")
         st.metric("Handicap", handicap)
 
-        st.dataframe(
-            pd.DataFrame([row]),
-            width="stretch"
-        )
+        st.dataframe(pd.DataFrame([row]), width="stretch")
 
 # =========================================================
-# RANKING (UI UPGRADE)
+# RANKING
 # =========================================================
 elif menu == "🏆 Ranking":
     st.title("🏆 Ranking")
@@ -242,7 +254,9 @@ elif menu == "🏆 Ranking":
 
     ranking = ranking.sort_values("Handicap", ascending=False)
 
-    # 🏆 PODIUM UI (UPDATED)
+    # ======================
+    # PODIUM (PRO UI)
+    # ======================
     st.subheader("🏆 Podium")
 
     medals = ["🥇", "🥈", "🥉"]
@@ -250,18 +264,21 @@ elif menu == "🏆 Ranking":
     cols = st.columns(3)
 
     for i in range(min(3, len(ranking))):
-        cols[i].markdown(
-            f"""
-            <div class="card">
-                <h2>{medals[i]} {ranking.iloc[i]['Speler']}</h2>
-                <h3>Handicap: {ranking.iloc[i]['Handicap']}</h3>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        speler = ranking.iloc[i]["Speler"]
+        handicap = ranking.iloc[i]["Handicap"]
+
+        initials = "".join([x[0] for x in speler.split()]).upper()
+
+        cols[i].markdown(f"""
+        <div class="card">
+            <div class="avatar">{initials}</div>
+            <h2>{medals[i]} {speler}</h2>
+            <h3>Handicap: {handicap}</h3>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.divider()
 
     st.subheader("📊 Volledige ranking")
 
-    st.dataframe(ranking, width="stretch")
+    st.dataframe(ranking, width="stretch", hide_index=True)
