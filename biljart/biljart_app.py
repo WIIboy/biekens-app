@@ -16,7 +16,7 @@ PLAYERS_FILE = "spelers.csv"
 MATCHES_FILE = "wedstrijden.csv"
 
 # ======================
-# INIT PLAYERS
+# INIT FILES
 # ======================
 if not os.path.exists(PLAYERS_FILE):
     pd.DataFrame(columns=[
@@ -26,9 +26,6 @@ if not os.path.exists(PLAYERS_FILE):
         "Totaal Beurten"
     ]).to_csv(PLAYERS_FILE, index=False)
 
-# ======================
-# INIT MATCHES
-# ======================
 if not os.path.exists(MATCHES_FILE):
     pd.DataFrame(columns=[
         "Datum", "Periode",
@@ -44,14 +41,17 @@ df = pd.read_csv(PLAYERS_FILE)
 matches = pd.read_csv(MATCHES_FILE)
 
 # ======================
-# 🔥 ULTIEME FIX: SAFE NUMERIC CONVERSION
+# 🔥 ULTRA SAFE CLEANING
 # ======================
-def safe_numeric(series):
-    return pd.to_numeric(series, errors="coerce").fillna(0)
+def to_num(x):
+    try:
+        return float(x)
+    except:
+        return 0.0
 
 for col in ["Totaal Punten", "Totaal Beurten", "Wedstrijden"]:
     if col in df.columns:
-        df[col] = safe_numeric(df[col])
+        df[col] = df[col].apply(to_num)
 
 # ======================
 # STYLE
@@ -61,7 +61,6 @@ st.markdown("""
 .stApp {
     background: radial-gradient(circle at top, #0b2a1d, #06150f 70%);
 }
-
 h1 { color: #d4af37 !important; }
 h2, h3 { color: #f5d77b !important; }
 </style>
@@ -106,7 +105,7 @@ if menu == "🏠 Home":
     col3.metric("Totaal punten", int(df["Totaal Punten"].sum()))
 
 # ======================
-# 👤 SPELERS + DELETE
+# 👤 SPELERS
 # ======================
 elif menu == "👤 Spelers":
     st.title("👤 Spelersbeheer")
@@ -145,11 +144,11 @@ elif menu == "👤 Spelers":
             df.to_csv(PLAYERS_FILE, index=False)
             matches.to_csv(MATCHES_FILE, index=False)
 
-            st.success(f"Speler '{speler_del}' en al zijn wedstrijden zijn verwijderd.")
+            st.success("Speler verwijderd")
             st.rerun()
 
 # ======================
-# 🎮 MATCH INVOER (FIXED SAFE UPDATE)
+# 🎮 MATCH INVOER (FIXED CORE)
 # ======================
 elif menu == "🎮 Match invoeren":
     st.title("🎮 Match invoeren")
@@ -169,26 +168,26 @@ elif menu == "🎮 Match invoeren":
         winnaar = st.selectbox("Winnaar", [s1, s2])
 
         if st.button("Opslaan match"):
-            idx1 = df[df["Speler"] == s1].index[0]
-            idx2 = df[df["Speler"] == s2].index[0]
+            idx1 = df.index[df["Speler"] == s1][0]
+            idx2 = df.index[df["Speler"] == s2][0]
 
             p_win = punten_win(beurten)
 
             if winnaar == s1:
                 p1 = p_win
                 p2 = punten_verlies(p_win, c2, h2)
-                df.loc[idx1, "Wedstrijden"] += 1
+                df.at[idx1, "Wedstrijden"] += 1
             else:
                 p2 = p_win
                 p1 = punten_verlies(p_win, c1, h1)
-                df.loc[idx2, "Wedstrijden"] += 1
+                df.at[idx2, "Wedstrijden"] += 1
 
-            # 🔥 SAFE UPDATE (NO TYPE ERRORS EVER)
-            df.loc[idx1, "Totaal Punten"] = safe_numeric(df.loc[idx1, "Totaal Punten"]) + float(p1)
-            df.loc[idx2, "Totaal Punten"] = safe_numeric(df.loc[idx2, "Totaal Punten"]) + float(p2)
+            # 🔥 SAFE UPDATE USING .at (NO MORE ERRORS)
+            df.at[idx1, "Totaal Punten"] = to_num(df.at[idx1, "Totaal Punten"]) + p1
+            df.at[idx2, "Totaal Punten"] = to_num(df.at[idx2, "Totaal Punten"]) + p2
 
-            df.loc[idx1, "Totaal Beurten"] = safe_numeric(df.loc[idx1, "Totaal Beurten"]) + beurten
-            df.loc[idx2, "Totaal Beurten"] = safe_numeric(df.loc[idx2, "Totaal Beurten"]) + beurten
+            df.at[idx1, "Totaal Beurten"] = to_num(df.at[idx1, "Totaal Beurten"]) + beurten
+            df.at[idx2, "Totaal Beurten"] = to_num(df.at[idx2, "Totaal Beurten"]) + beurten
 
             df.to_csv(PLAYERS_FILE, index=False)
 
