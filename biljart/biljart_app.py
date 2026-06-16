@@ -100,11 +100,12 @@ if menu == "🏠 Home":
     col3.metric("Totaal punten", int(df["Totaal Punten"].sum()))
 
 # ======================
-# SPELERS
+# 👤 SPELERS + DELETE (VOLLEDIG FIX)
 # ======================
 elif menu == "👤 Spelers":
     st.title("👤 Spelersbeheer")
 
+    # ➕ TOEVOEGEN
     naam = st.text_input("Nieuwe speler")
 
     if st.button("Toevoegen"):
@@ -121,8 +122,33 @@ elif menu == "👤 Spelers":
                 st.success("Toegevoegd")
                 st.rerun()
 
+    st.divider()
+
+    # 🗑️ VERWIJDEREN (FIXED)
+    st.subheader("🗑️ Speler verwijderen")
+
+    if len(df) > 0:
+        speler_del = st.selectbox("Selecteer speler", df["Speler"])
+
+        if st.button("Verwijder speler"):
+            # verwijder speler
+            df = df[df["Speler"] != speler_del]
+
+            # verwijder alle matches
+            matches = matches[
+                (matches["Speler1"] != speler_del) &
+                (matches["Speler2"] != speler_del)
+            ]
+
+            # opslaan
+            df.to_csv(PLAYERS_FILE, index=False)
+            matches.to_csv(MATCHES_FILE, index=False)
+
+            st.success(f"Speler '{speler_del}' en al zijn wedstrijden zijn verwijderd.")
+            st.rerun()
+
 # ======================
-# 🎮 MATCH INVOER (HERSTELD)
+# 🎮 MATCH INVOER
 # ======================
 elif menu == "🎮 Match invoeren":
     st.title("🎮 Match invoeren")
@@ -156,7 +182,6 @@ elif menu == "🎮 Match invoeren":
                 p1 = punten_verlies(p_win, c1, h1)
                 df.loc[idx2, "Wedstrijden"] += 1
 
-            # SAFE numeric update
             df.loc[idx1, "Totaal Punten"] = float(df.loc[idx1, "Totaal Punten"]) + float(p1)
             df.loc[idx2, "Totaal Punten"] = float(df.loc[idx2, "Totaal Punten"]) + float(p2)
 
@@ -187,7 +212,7 @@ elif menu == "🎮 Match invoeren":
             st.rerun()
 
 # ======================
-# RANKING
+# 🏆 RANKING
 # ======================
 elif menu == "🏆 Ranking":
     st.title("🏆 Ranking")
@@ -207,7 +232,7 @@ elif menu == "🏆 Ranking":
     st.dataframe(ranking, use_container_width=True, hide_index=True)
 
 # ======================
-# STATS
+# 📊 STATS
 # ======================
 elif menu == "📊 Stats":
     st.title("📊 Statistieken")
@@ -231,7 +256,7 @@ elif menu == "📊 Stats":
 """)
 
 # ======================
-# KAMPIOENSCHAP
+# 👑 KAMPIOENSCHAP
 # ======================
 elif menu == "👑 Kampioenschap":
     st.title("👑 Kampioenschap")
