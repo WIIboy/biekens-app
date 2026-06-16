@@ -1,6 +1,2 @@
-Datum,Periode,Speler1,Speler2,Handicap1,Handicap2,Caramboles1,Caramboles2,Beurten,Winnaar,Punten1,Punten2
-2026-06-16,H1,Koen,Frank,1,1,57,43,25,Koen,5.2,223.6
-2026-06-16,H1,Koen,Frank,1,2,55,43,10,Koen,8.2,176.3
-2026-06-16,H1,Koen,Frank,1,2,50,43,1,Frank,500.0,10.0
-2026-06-16,H1,Wim,Koen,1,1,16,47,5,Wim,9.2,432.4
-2026-06-16,H1,Frank,Wim,1,2,30,16,1,Wim,300.0,10.0
+Datum,Periode,Speler1,Speler2,Handicap1,Handicap2,Caramboles1,Caramboles2,Beurten,Winnaar,Punten1,Punten2,Speler,Tegenstander,Punten
+,,,,,,,,25,Koen,,,Koen,,50.0
