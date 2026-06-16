@@ -249,12 +249,14 @@ elif menu == "📊 Stats":
 
     st.markdown("### ⚡ Kortste partij")
 
-    st.markdown(f"""
-**Speler 1:** {kortste['Speler1']}  
-**Speler 2:** {kortste['Speler2']}  
-**Beurten:** {kortste['Beurten']}  
-**Winnaar:** {kortste['Winnaar']}  
-""")
+    kortste_tabel = pd.DataFrame([{
+        "Speler 1": kortste['Speler1'],
+        "Speler 2": kortste['Speler2'],
+        "Beurten": int(kortste['Beurten']),
+        "Winnaar": kortste['Winnaar']
+    }])
+
+    st.dataframe(kortste_tabel, use_container_width=True, hide_index=True)
 
 # ======================
 # 👑 KAMPIOENSCHAP
