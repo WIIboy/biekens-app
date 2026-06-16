@@ -43,9 +43,15 @@ if not os.path.exists(MATCHES_FILE):
 df = pd.read_csv(PLAYERS_FILE)
 matches = pd.read_csv(MATCHES_FILE)
 
-# 🔥 FIX NUMERIC TYPES
+# ======================
+# 🔥 ULTIEME FIX: SAFE NUMERIC CONVERSION
+# ======================
+def safe_numeric(series):
+    return pd.to_numeric(series, errors="coerce").fillna(0)
+
 for col in ["Totaal Punten", "Totaal Beurten", "Wedstrijden"]:
-    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    if col in df.columns:
+        df[col] = safe_numeric(df[col])
 
 # ======================
 # STYLE
@@ -100,12 +106,11 @@ if menu == "🏠 Home":
     col3.metric("Totaal punten", int(df["Totaal Punten"].sum()))
 
 # ======================
-# 👤 SPELERS + DELETE (VOLLEDIG FIX)
+# 👤 SPELERS + DELETE
 # ======================
 elif menu == "👤 Spelers":
     st.title("👤 Spelersbeheer")
 
-    # ➕ TOEVOEGEN
     naam = st.text_input("Nieuwe speler")
 
     if st.button("Toevoegen"):
@@ -124,23 +129,19 @@ elif menu == "👤 Spelers":
 
     st.divider()
 
-    # 🗑️ VERWIJDEREN (FIXED)
     st.subheader("🗑️ Speler verwijderen")
 
     if len(df) > 0:
         speler_del = st.selectbox("Selecteer speler", df["Speler"])
 
         if st.button("Verwijder speler"):
-            # verwijder speler
             df = df[df["Speler"] != speler_del]
 
-            # verwijder alle matches
             matches = matches[
                 (matches["Speler1"] != speler_del) &
                 (matches["Speler2"] != speler_del)
             ]
 
-            # opslaan
             df.to_csv(PLAYERS_FILE, index=False)
             matches.to_csv(MATCHES_FILE, index=False)
 
@@ -148,7 +149,7 @@ elif menu == "👤 Spelers":
             st.rerun()
 
 # ======================
-# 🎮 MATCH INVOER
+# 🎮 MATCH INVOER (FIXED SAFE UPDATE)
 # ======================
 elif menu == "🎮 Match invoeren":
     st.title("🎮 Match invoeren")
@@ -182,11 +183,12 @@ elif menu == "🎮 Match invoeren":
                 p1 = punten_verlies(p_win, c1, h1)
                 df.loc[idx2, "Wedstrijden"] += 1
 
-            df.loc[idx1, "Totaal Punten"] = float(df.loc[idx1, "Totaal Punten"]) + float(p1)
-            df.loc[idx2, "Totaal Punten"] = float(df.loc[idx2, "Totaal Punten"]) + float(p2)
+            # 🔥 SAFE UPDATE (NO TYPE ERRORS EVER)
+            df.loc[idx1, "Totaal Punten"] = safe_numeric(df.loc[idx1, "Totaal Punten"]) + float(p1)
+            df.loc[idx2, "Totaal Punten"] = safe_numeric(df.loc[idx2, "Totaal Punten"]) + float(p2)
 
-            df.loc[idx1, "Totaal Beurten"] = float(df.loc[idx1, "Totaal Beurten"]) + beurten
-            df.loc[idx2, "Totaal Beurten"] = float(df.loc[idx2, "Totaal Beurten"]) + beurten
+            df.loc[idx1, "Totaal Beurten"] = safe_numeric(df.loc[idx1, "Totaal Beurten"]) + beurten
+            df.loc[idx2, "Totaal Beurten"] = safe_numeric(df.loc[idx2, "Totaal Beurten"]) + beurten
 
             df.to_csv(PLAYERS_FILE, index=False)
 
