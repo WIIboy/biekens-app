@@ -24,7 +24,7 @@ if not os.path.exists(PLAYERS_FILE):
         "Wedstrijden",
         "Totaal Punten",
         "Totaal Beurten"
-    ]).to_csv(PLAYERS_FILE, index=False)
+    ]).to_csv(PLAYERS_FILE, index=False, encoding='utf-8')
 
 if not os.path.exists(MATCHES_FILE):
     pd.DataFrame(columns=[
@@ -35,7 +35,7 @@ if not os.path.exists(MATCHES_FILE):
         "Beurten",
         "Winnaar",
         "Punten1", "Punten2"
-    ]).to_csv(MATCHES_FILE, index=False)
+    ]).to_csv(MATCHES_FILE, index=False, encoding='utf-8')
 
 df = pd.read_csv(PLAYERS_FILE)
 matches = pd.read_csv(MATCHES_FILE)
@@ -122,7 +122,7 @@ elif menu == "👤 Spelers":
                     "Totaal Beurten": 0
                 }])], ignore_index=True)
 
-                df.to_csv(PLAYERS_FILE, index=False)
+                df.to_csv(PLAYERS_FILE, index=False, encoding='utf-8')
                 st.success("Toegevoegd")
                 st.rerun()
 
@@ -141,8 +141,8 @@ elif menu == "👤 Spelers":
                 (matches["Speler2"] != speler_del)
             ]
 
-            df.to_csv(PLAYERS_FILE, index=False)
-            matches.to_csv(MATCHES_FILE, index=False)
+            df.to_csv(PLAYERS_FILE, index=False, encoding='utf-8')
+            matches.to_csv(MATCHES_FILE, index=False, encoding='utf-8')
 
             st.success("Speler verwijderd")
             st.rerun()
@@ -154,8 +154,8 @@ elif menu == "🎮 Match invoeren":
     st.title("🎮 Match invoeren")
 
     if len(df) > 0:
-        s1 = st.selectbox("Speler 1", df["Speler"])
-        s2 = st.selectbox("Speler 2", df["Speler"])
+        s1 = st.selectbox("Speler 1", df["Speler"], key="s1")
+        s2 = st.selectbox("Speler 2", df[df["Speler"] != s1]["Speler"], key="s2")
 
         h1 = st.number_input("Handicap 1", min_value=1, value=1)
         h2 = st.number_input("Handicap 2", min_value=1, value=1)
@@ -189,7 +189,7 @@ elif menu == "🎮 Match invoeren":
             df.at[idx1, "Totaal Beurten"] = to_num(df.at[idx1, "Totaal Beurten"]) + beurten
             df.at[idx2, "Totaal Beurten"] = to_num(df.at[idx2, "Totaal Beurten"]) + beurten
 
-            df.to_csv(PLAYERS_FILE, index=False)
+            df.to_csv(PLAYERS_FILE, index=False, encoding='utf-8')
 
             new_match = pd.DataFrame([{
                 "Datum": datetime.now().date(),
@@ -207,7 +207,7 @@ elif menu == "🎮 Match invoeren":
             }])
 
             matches = pd.concat([matches, new_match], ignore_index=True)
-            matches.to_csv(MATCHES_FILE, index=False)
+            matches.to_csv(MATCHES_FILE, index=False, encoding='utf-8')
 
             st.success("Match opgeslagen")
             st.rerun()
@@ -249,12 +249,14 @@ elif menu == "📊 Stats":
 
     st.markdown("### ⚡ Kortste partij")
 
-    st.markdown(f"""
-**Speler 1:** {kortste['Speler1']}  
-**Speler 2:** {kortste['Speler2']}  
-**Beurten:** {kortste['Beurten']}  
-**Winnaar:** {kortste['Winnaar']}  
-""")
+    kortste_tabel = pd.DataFrame([{
+        "Speler 1": kortste['Speler1'],
+        "Speler 2": kortste['Speler2'],
+        "Beurten": int(kortste['Beurten']),
+        "Winnaar": kortste['Winnaar']
+    }])
+
+    st.dataframe(kortste_tabel, use_container_width=True, hide_index=True)
 
 # ======================
 # 👑 KAMPIOENSCHAP
