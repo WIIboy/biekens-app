@@ -233,17 +233,33 @@ elif menu == "📊 Stats":
 elif menu == "👑 Kampioenschap":
     st.title("👑 Kampioenschap")
 
+    if len(matches) == 0:
+        st.info("Geen data beschikbaar")
+        st.stop()
+
     spelers = set(matches["Speler1"]).union(set(matches["Speler2"]))
 
     data = []
 
     for s in spelers:
-        totaal = matches[(matches["Speler1"] == s)]["Punten1"].sum() + \
-                 matches[(matches["Speler2"] == s)]["Punten2"].sum()
+        totaal = (
+            matches[matches["Speler1"] == s]["Punten1"].sum() +
+            matches[matches["Speler2"] == s]["Punten2"].sum()
+        )
 
-        data.append({"Speler": s, "Totaal": totaal})
+        data.append({
+            "Speler": s,
+            "Totaal": float(totaal)   # 🔥 belangrijk: altijd numeriek
+        })
 
-    dfk = pd.DataFrame(data).sort_values("Totaal", ascending=False)
+    dfk = pd.DataFrame(data)
 
-    st.success(f"Kampioen: {dfk.iloc[0]['Speler']}")
-    st.dataframe(dfk)
+    # 🔥 FIX: safety check (voorkomt KeyError)
+    if dfk.empty:
+        st.warning("Geen kampioenschapsdata beschikbaar")
+        st.stop()
+
+    dfk = dfk.sort_values("Totaal", ascending=False)
+
+    st.success(f"🏆 Kampioen: {dfk.iloc[0]['Speler']}")
+    st.dataframe(dfk, use_container_width=True)
