@@ -261,25 +261,44 @@ elif menu == "👑 Kampioenschap":
     dfk = dfk.sort_values("Totaal", ascending=False).reset_index(drop=True)
 
     # ======================
-    # 🏅 PODIUM
+    # 🎨 PODIUM MET KLEUREN
     # ======================
     st.subheader("🏆 Podium")
 
-    cols = st.columns(3)
+    def podium_card(label, speler, score, color):
+        st.markdown(f"""
+        <div style="
+            background-color:{color};
+            padding:15px;
+            border-radius:12px;
+            text-align:center;
+            color:black;
+            font-weight:bold;
+        ">
+        {label}<br><br>
+        🎱 {speler}<br>
+        ⭐ {score:.2f}
+        </div>
+        """, unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
 
     if len(dfk) > 0:
-        cols[1].metric("🥇 1e plaats", dfk.iloc[0]["Speler"], f"{dfk.iloc[0]['Totaal']:.2f}")
+        with col2:
+            podium_card("🥇 1STE PLAATS", dfk.iloc[0]["Speler"], dfk.iloc[0]["Totaal"], "#d4af37")
 
     if len(dfk) > 1:
-        cols[0].metric("🥈 2e plaats", dfk.iloc[1]["Speler"], f"{dfk.iloc[1]['Totaal']:.2f}")
+        with col1:
+            podium_card("🥈 2DE PLAATS", dfk.iloc[1]["Speler"], dfk.iloc[1]["Totaal"], "#c0c0c0")
 
     if len(dfk) > 2:
-        cols[2].metric("🥉 3e plaats", dfk.iloc[2]["Speler"], f"{dfk.iloc[2]['Totaal']:.2f}")
+        with col3:
+            podium_card("🥉 3DE PLAATS", dfk.iloc[2]["Speler"], dfk.iloc[2]["Totaal"], "#cd7f32")
 
     st.divider()
 
     # ======================
-    # 📊 VOLLEDIGE RANKING
+    # 📊 RANKING TABEL
     # ======================
     st.subheader("📊 Volledige ranking")
 
