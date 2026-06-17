@@ -20,8 +20,10 @@ MATCHES_FILE = "wedstrijden.csv"
 # ======================
 if not os.path.exists(PLAYERS_FILE):
     pd.DataFrame(columns=[
-        "Speler", "H1_Handicap", "H2_Handicap",
-        "Wedstrijden", "Totaal Punten", "Totaal Beurten"
+        "Speler",
+        "Totaal Punten",
+        "Totaal Beurten",
+        "Wedstrijden"
     ]).to_csv(PLAYERS_FILE, index=False)
 
 if not os.path.exists(MATCHES_FILE):
@@ -47,7 +49,7 @@ def to_num(x):
     except:
         return 0.0
 
-for col in ["Wedstrijden", "Totaal Punten", "Totaal Beurten"]:
+for col in ["Totaal Punten", "Totaal Beurten", "Wedstrijden"]:
     if col in df.columns:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
@@ -56,7 +58,44 @@ for col in ["Beurten", "Punten1", "Punten2"]:
         matches[col] = pd.to_numeric(matches[col], errors="coerce").fillna(0)
 
 # ======================
-# STYLE
+# 🎱 THISSEN OFFICIËLE TABEL (UITBREIDBAAR)
+# ======================
+THISSEN = {
+    # voorbeeldwaarden (jij vult later volledig boekje aan)
+    16: 2.051,
+    17: 2.179,
+    77: 9.872
+}
+
+def thissen_score(gemaakt, target):
+    """
+    Officiële lookup (geen gokken)
+    """
+    if gemaakt in THISSEN:
+        return THISSEN[gemaakt]
+
+    # fallback (veilig, maar niet officieel)
+    if target == 0:
+        return 0
+
+    ratio = gemaakt / target
+    return round(ratio * 10, 3)
+
+# ======================
+# BEURTEN TABEL (OFFICIEEL)
+# ======================
+def beurt_score(beurten):
+    return round(max(0.2, 10 - (beurten - 1) * 0.2), 3)
+
+# ======================
+# PERIODE
+# ======================
+def periode(d):
+    m = pd.to_datetime(d).month
+    return "H1" if m <= 6 else "H2"
+
+# ======================
+# STYLE (GROEN + GOUD CLUB)
 # ======================
 st.markdown("""
 <style>
@@ -68,37 +107,6 @@ h1 { color: #d4af37; }
 h2, h3 { color: #f5d77b; }
 </style>
 """, unsafe_allow_html=True)
-
-# ======================
-# POINT SYSTEM (OFFICIAL TABLE)
-# ======================
-def punten_win(beurten):
-    if beurten < 1:
-        return 0
-    return round(max(0.2, 10 - (beurten - 1) * 0.2), 1)
-
-def periode(d):
-    m = pd.to_datetime(d).month
-    return "H1" if m <= 6 else "H2"
-
-def save():
-    df.to_csv(PLAYERS_FILE, index=False)
-    matches.to_csv(MATCHES_FILE, index=False)
-
-# ======================
-# MATCH LIMIT CHECK (2x per seizoen)
-# ======================
-def check_match_limit(s1, s2, periode):
-    m = matches[matches["Periode"] == periode]
-
-    count = len(
-        m[
-            ((m["Speler1"] == s1) & (m["Speler2"] == s2)) |
-            ((m["Speler1"] == s2) & (m["Speler2"] == s1))
-        ]
-    )
-
-    return count < 2
 
 # ======================
 # MENU
@@ -121,40 +129,46 @@ if menu == "🏠 Home":
     col1, col2, col3 = st.columns(3)
     col1.metric("Spelers", len(df))
     col2.metric("Wedstrijden", len(matches))
-    col3.metric("Punten", round(df["Totaal Punten"].sum(), 2))
+    col3.metric("Totaal punten", round(df["Totaal Punten"].sum(), 2))
 
 # ======================
 # SPELERS
 # ======================
 elif menu == "👤 Spelers":
-    st.title("👤 Spelersbeheer")
+    st.title("👤 Spelers")
 
     naam = st.text_input("Nieuwe speler")
 
     if st.button("Toevoegen"):
         if naam.strip():
-            df.loc[len(df)] = [naam, 0, 0, 0, 0, 0]
-            save()
+            df.loc[len(df)] = [naam, 0, 0, 0]
+            df.to_csv(PLAYERS_FILE, index=False)
             st.rerun()
 
     st.divider()
 
     if len(df) > 0:
-        speler = st.selectbox("Verwijder speler", df["Speler"])
+        delsp = st.selectbox("Verwijder speler", df["Speler"])
 
         if st.button("Verwijderen"):
-            df = df[df["Speler"] != speler]
-            matches = matches[(matches["Speler1"] != speler) & (matches["Speler2"] != speler)]
-            save()
+            df = df[df["Speler"] != delsp]
+            matches = matches[
+                (matches["Speler1"] != delsp) &
+                (matches["Speler2"] != delsp)
+            ]
+
+            df.to_csv(PLAYERS_FILE, index=False)
+            matches.to_csv(MATCHES_FILE, index=False)
             st.rerun()
 
 # ======================
-# MATCH INVOER (LIMIT ACTIVE)
+# MATCH
 # ======================
 elif menu == "🎮 Match":
     st.title("🎮 Match invoeren")
 
     if len(df) > 0:
+
         s1 = st.selectbox("Speler 1", df["Speler"])
         s2 = st.selectbox("Speler 2", df[df["Speler"] != s1]["Speler"])
 
@@ -170,47 +184,46 @@ elif menu == "🎮 Match":
         beurten = st.number_input("Beurten winnaar", 1)
         winnaar = st.selectbox("Winnaar", [s1, s2])
 
-        # 🔥 CHECK LIMIT
-        allowed = check_match_limit(s1, s2, per)
+        if st.button("Opslaan"):
 
-        if not allowed:
-            st.error("❌ Deze spelers hebben al 2 keer tegen elkaar gespeeld in deze periode (H1/H2).")
-        else:
-            if st.button("Opslaan match"):
-                idx1 = df.index[df["Speler"] == s1][0]
-                idx2 = df.index[df["Speler"] == s2][0]
+            idx1 = df.index[df["Speler"] == s1][0]
+            idx2 = df.index[df["Speler"] == s2][0]
 
-                p_win = punten_win(beurten)
+            # 🎱 THISSEN SCORE
+            p1 = thissen_score(c1, h1)
+            p2 = thissen_score(c2, h2)
 
-                if winnaar == s1:
-                    p1 = p_win
-                    p2 = 0
-                    df.at[idx1, "Wedstrijden"] += 1
-                else:
-                    p2 = p_win
-                    p1 = 0
-                    df.at[idx2, "Wedstrijden"] += 1
+            # winnaar krijgt bonus via beurten
+            bonus = beurt_score(beurten)
 
-                df.at[idx1, "Totaal Punten"] += p1
-                df.at[idx2, "Totaal Punten"] += p2
+            if winnaar == s1:
+                p1 += bonus
+                df.at[idx1, "Wedstrijden"] += 1
+            else:
+                p2 += bonus
+                df.at[idx2, "Wedstrijden"] += 1
 
-                df.at[idx1, "Totaal Beurten"] += beurten
-                df.at[idx2, "Totaal Beurten"] += beurten
+            df.at[idx1, "Totaal Punten"] += p1
+            df.at[idx2, "Totaal Punten"] += p2
 
-                matches.loc[len(matches)] = [
-                    str(d),
-                    per,
-                    s1, s2,
-                    h1, h2,
-                    c1, c2,
-                    beurten,
-                    winnaar,
-                    p1, p2
-                ]
+            df.at[idx1, "Totaal Beurten"] += beurten
+            df.at[idx2, "Totaal Beurten"] += beurten
 
-                save()
-                st.success("Match opgeslagen")
-                st.rerun()
+            matches.loc[len(matches)] = [
+                str(d), per,
+                s1, s2,
+                h1, h2,
+                c1, c2,
+                beurten,
+                winnaar,
+                p1, p2
+            ]
+
+            df.to_csv(PLAYERS_FILE, index=False)
+            matches.to_csv(MATCHES_FILE, index=False)
+
+            st.success("Match opgeslagen")
+            st.rerun()
 
 # ======================
 # RANKING
@@ -220,9 +233,9 @@ elif menu == "🏆 Ranking":
 
     ranking = df.copy()
     ranking["Moyenne"] = ranking["Totaal Punten"] / ranking["Totaal Beurten"].replace(0, 1)
-    ranking["Handicap"] = (ranking["Moyenne"] * 25).round().astype(int)
+    ranking["Handicap"] = (ranking["Moyenne"] * 25).round(2)
 
-    st.dataframe(ranking.sort_values("Handicap", ascending=False), use_container_width=True)
+    st.dataframe(ranking.sort_values("Handicap", ascending=False))
 
 # ======================
 # STATS
@@ -234,19 +247,18 @@ elif menu == "📊 Stats":
         st.info("Geen data")
         st.stop()
 
-    st.subheader("Wins")
+    st.subheader("🏆 Meeste wins")
     st.dataframe(matches["Winnaar"].value_counts())
 
-    kortste = matches.loc[matches["Beurten"].idxmin()]
-
-    st.subheader("Kortste match")
+    st.subheader("⚡ Kortste match")
+    kort = matches.sort_values("Beurten").iloc[0]
 
     st.dataframe(pd.DataFrame([{
-        "Speler 1": kortste["Speler1"],
-        "Speler 2": kortste["Speler2"],
-        "Beurten": kortste["Beurten"],
-        "Winnaar": kortste["Winnaar"],
-        "Datum": kortste["Datum"]
+        "Winnaar": kort["Winnaar"],
+        "Speler1": kort["Speler1"],
+        "Speler2": kort["Speler2"],
+        "Beurten": kort["Beurten"],
+        "Datum": kort["Datum"]
     }]))
 
 # ======================
@@ -270,4 +282,4 @@ elif menu == "👑 Kampioenschap":
     dfk = pd.DataFrame(data).sort_values("Totaal", ascending=False)
 
     st.success(f"🏆 Kampioen: {dfk.iloc[0]['Speler']}")
-    st.dataframe(dfk, use_container_width=True)
+    st.dataframe(dfk)
