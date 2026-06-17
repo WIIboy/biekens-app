@@ -249,17 +249,42 @@ elif menu == "👑 Kampioenschap":
 
         data.append({
             "Speler": s,
-            "Totaal": float(totaal)   # 🔥 belangrijk: altijd numeriek
+            "Totaal": float(totaal)
         })
 
     dfk = pd.DataFrame(data)
 
-    # 🔥 FIX: safety check (voorkomt KeyError)
     if dfk.empty:
-        st.warning("Geen kampioenschapsdata beschikbaar")
+        st.info("Geen kampioenschapsdata")
         st.stop()
 
-    dfk = dfk.sort_values("Totaal", ascending=False)
+    dfk = dfk.sort_values("Totaal", ascending=False).reset_index(drop=True)
 
-    st.success(f"🏆 Kampioen: {dfk.iloc[0]['Speler']}")
-    st.dataframe(dfk, use_container_width=True)
+    # ======================
+    # 🏅 PODIUM
+    # ======================
+    st.subheader("🏆 Podium")
+
+    cols = st.columns(3)
+
+    if len(dfk) > 0:
+        cols[1].metric("🥇 1e plaats", dfk.iloc[0]["Speler"], f"{dfk.iloc[0]['Totaal']:.2f}")
+
+    if len(dfk) > 1:
+        cols[0].metric("🥈 2e plaats", dfk.iloc[1]["Speler"], f"{dfk.iloc[1]['Totaal']:.2f}")
+
+    if len(dfk) > 2:
+        cols[2].metric("🥉 3e plaats", dfk.iloc[2]["Speler"], f"{dfk.iloc[2]['Totaal']:.2f}")
+
+    st.divider()
+
+    # ======================
+    # 📊 VOLLEDIGE RANKING
+    # ======================
+    st.subheader("📊 Volledige ranking")
+
+    st.dataframe(
+        dfk,
+        use_container_width=True,
+        hide_index=True
+    )
