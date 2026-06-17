@@ -50,7 +50,7 @@ for col in ["Beurten", "Punten1", "Punten2"]:
     matches[col] = pd.to_numeric(matches[col], errors="coerce").fillna(0)
 
 # ======================
-# STYLE (GROEN + GEEL CLUB THEMA)
+# STYLE (GROEN / GEEL CLUB THEMA)
 # ======================
 st.markdown("""
 <style>
@@ -72,10 +72,14 @@ def punten_win(beurten):
 def periode(d):
     return "H1" if pd.to_datetime(d).month <= 6 else "H2"
 
-# 🎯 BELANGRIJK: HANDICAP FORMULE
+# ✅ OFFICIËLE HANDICAP FORMULE
 def bereken_handicap(punten, beurten):
+    punten = float(punten)
+    beurten = float(beurten)
+
     if beurten == 0:
-        return 0
+        return 0.0
+
     return round((punten / beurten) * 25, 3)
 
 # ======================
@@ -108,7 +112,7 @@ if menu == "🏠 Home":
 # ======================
 elif menu == "👤 Spelers":
 
-    st.title("👤 Spelers")
+    st.title("👤 Spelersbeheer")
 
     naam = st.text_input("Nieuwe speler")
 
@@ -203,10 +207,15 @@ elif menu == "🏆 Ranking":
     st.title("🏆 Ranking")
 
     ranking = df.copy()
-    ranking["Moyenne"] = ranking["Totaal Punten"] / ranking["Totaal Beurten"].replace(0, 1)
-    ranking["Handicap"] = (ranking["Moyenne"] * 25).round(2)
+    ranking["Handicap"] = ranking.apply(
+        lambda r: bereken_handicap(r["Totaal Punten"], r["Totaal Beurten"]),
+        axis=1
+    )
 
-    st.dataframe(ranking.sort_values("Handicap", ascending=False), use_container_width=True)
+    st.dataframe(
+        ranking.sort_values("Handicap", ascending=False),
+        use_container_width=True
+    )
 
 # ======================
 # 📊 STATS
@@ -218,7 +227,7 @@ elif menu == "📊 Stats":
     st.dataframe(matches["Winnaar"].value_counts(), use_container_width=True)
 
 # ======================
-# 🧮 HANDICAP CALCULATOR PER SPELER
+# 🧮 HANDICAP PER SPELER
 # ======================
 elif menu == "🧮 Handicap berekenen":
 
@@ -236,7 +245,7 @@ elif menu == "🧮 Handicap berekenen":
     st.metric("Speler", speler)
     st.metric("Totaal punten", round(punten, 2))
     st.metric("Totaal beurten", int(beurten))
-    st.success(f"🎯 Nieuwe handicap: {handicap}")
+    st.success(f"🎯 Handicap: {handicap}")
 
 # ======================
 # 👑 KAMPIOENSCHAP
