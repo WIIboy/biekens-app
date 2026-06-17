@@ -20,7 +20,11 @@ MATCHES_FILE = "wedstrijden.csv"
 # ======================
 if not os.path.exists(PLAYERS_FILE):
     pd.DataFrame(columns=[
-        "Speler", "Totaal Punten", "Totaal Beurten", "Wedstrijden"
+        "Speler",
+        "Totaal Punten",
+        "Totaal Beurten",
+        "Wedstrijden",
+        "Handicap"
     ]).to_csv(PLAYERS_FILE, index=False)
 
 if not os.path.exists(MATCHES_FILE):
@@ -40,7 +44,7 @@ matches = pd.read_csv(MATCHES_FILE)
 # ======================
 # SAFE NUMBERS
 # ======================
-for col in ["Totaal Punten", "Totaal Beurten", "Wedstrijden"]:
+for col in ["Totaal Punten", "Totaal Beurten", "Wedstrijden", "Handicap"]:
     if col in df.columns:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
@@ -49,7 +53,7 @@ for col in ["Beurten", "Punten1", "Punten2"]:
         matches[col] = pd.to_numeric(matches[col], errors="coerce").fillna(0)
 
 # ======================
-# STYLE (GROEN / GEEL)
+# STYLE
 # ======================
 st.markdown("""
 <style>
@@ -72,14 +76,12 @@ def periode(d):
     return "H1" if pd.to_datetime(d).month <= 6 else "H2"
 
 def bereken_handicap(punten, beurten):
-    punten = float(punten)
-    beurten = float(beurten)
     if beurten == 0:
         return 0.0
-    return round((punten / beurten) * 25, 3)
+    return round((float(punten) / float(beurten)) * 25, 3)
 
 # ======================
-# 🔥 MAX 2 MATCHES CHECK
+# MAX 2 MATCHES PER PAAR PER PERIODE
 # ======================
 def mag_tegen_elkaar(s1, s2, per):
     return matches[
@@ -89,6 +91,28 @@ def mag_tegen_elkaar(s1, s2, per):
         ) &
         (matches["Periode"] == per)
     ].shape[0] < 2
+
+# ======================
+# HANDICAP UPDATE (PROMOTIE / DALING LOGICA)
+# ======================
+def update_handicaps(df, periode_type):
+    for i, row in df.iterrows():
+
+        if row["Totaal Beurten"] == 0:
+            continue
+
+        nieuw = (row["Totaal Punten"] / row["Totaal Beurten"]) * 25
+        oud = row["Handicap"]
+
+        # altijd stijgen toegestaan
+        if nieuw > oud:
+            df.at[i, "Handicap"] = round(nieuw, 2)
+
+        # dalen alleen in H2
+        elif periode_type == "H2":
+            df.at[i, "Handicap"] = round(nieuw, 2)
+
+    return df
 
 # ======================
 # MENU
@@ -106,6 +130,7 @@ menu = st.sidebar.radio("📊 Menu", [
 # HOME
 # ======================
 if menu == "🏠 Home":
+
     st.title("🎱 K.B.C. De Biekens")
 
     col1, col2, col3 = st.columns(3)
@@ -124,7 +149,7 @@ elif menu == "👤 Spelers":
 
     if st.button("Toevoegen"):
         if naam.strip():
-            df.loc[len(df)] = [naam, 0, 0, 0]
+            df.loc[len(df)] = [naam, 0, 0, 0, 0]
             df.to_csv(PLAYERS_FILE, index=False)
             st.rerun()
 
@@ -156,16 +181,16 @@ elif menu == "🎮 Match":
         s1 = st.selectbox("Speler 1", df["Speler"])
         per = periode(date.today())
 
-        mogelijke_s2 = [
+        mogelijke = [
             s for s in df["Speler"]
             if s != s1 and mag_tegen_elkaar(s1, s, per)
         ]
 
-        if len(mogelijke_s2) == 0:
-            st.warning("Geen tegenstanders beschikbaar (max 2 matches bereikt).")
+        if len(mogelijke) == 0:
+            st.warning("Geen beschikbare tegenstanders meer (max 2 matches).")
             st.stop()
 
-        s2 = st.selectbox("Speler 2", mogelijke_s2)
+        s2 = st.selectbox("Speler 2", mogelijke)
 
         h1 = st.number_input("Handicap 1", 1)
         h2 = st.number_input("Handicap 2", 1)
@@ -207,6 +232,9 @@ elif menu == "🎮 Match":
                 p1, p2
             ]
 
+            # 🔥 UPDATE HANDICAPS
+            df = update_handicaps(df, per)
+
             df.to_csv(PLAYERS_FILE, index=False)
             matches.to_csv(MATCHES_FILE, index=False)
 
@@ -220,14 +248,10 @@ elif menu == "🏆 Ranking":
 
     st.title("🏆 Ranking")
 
-    ranking = df.copy()
-    ranking["Handicap"] = ranking.apply(
-        lambda r: bereken_handicap(r["Totaal Punten"], r["Totaal Beurten"]),
-        axis=1
+    st.dataframe(
+        df.sort_values("Handicap", ascending=False),
+        use_container_width=True
     )
-
-    st.dataframe(ranking.sort_values("Handicap", ascending=False),
-                 use_container_width=True)
 
 # ======================
 # STATS
