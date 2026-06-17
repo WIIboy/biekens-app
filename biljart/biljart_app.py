@@ -20,10 +20,7 @@ MATCHES_FILE = "wedstrijden.csv"
 # ======================
 if not os.path.exists(PLAYERS_FILE):
     pd.DataFrame(columns=[
-        "Speler",
-        "Totaal Punten",
-        "Totaal Beurten",
-        "Wedstrijden"
+        "Speler", "Totaal Punten", "Totaal Beurten", "Wedstrijden"
     ]).to_csv(PLAYERS_FILE, index=False)
 
 if not os.path.exists(MATCHES_FILE):
@@ -44,13 +41,15 @@ matches = pd.read_csv(MATCHES_FILE)
 # SAFE NUMBERS
 # ======================
 for col in ["Totaal Punten", "Totaal Beurten", "Wedstrijden"]:
-    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    if col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
 for col in ["Beurten", "Punten1", "Punten2"]:
-    matches[col] = pd.to_numeric(matches[col], errors="coerce").fillna(0)
+    if col in matches.columns:
+        matches[col] = pd.to_numeric(matches[col], errors="coerce").fillna(0)
 
 # ======================
-# STYLE (GROEN / GEEL CLUB THEMA)
+# STYLE (GROEN / GEEL)
 # ======================
 st.markdown("""
 <style>
@@ -72,15 +71,24 @@ def punten_win(beurten):
 def periode(d):
     return "H1" if pd.to_datetime(d).month <= 6 else "H2"
 
-# ✅ OFFICIËLE HANDICAP FORMULE
 def bereken_handicap(punten, beurten):
     punten = float(punten)
     beurten = float(beurten)
-
     if beurten == 0:
         return 0.0
-
     return round((punten / beurten) * 25, 3)
+
+# ======================
+# 🔥 MAX 2 MATCHES CHECK
+# ======================
+def mag_tegen_elkaar(s1, s2, per):
+    return matches[
+        (
+            ((matches["Speler1"] == s1) & (matches["Speler2"] == s2)) |
+            ((matches["Speler1"] == s2) & (matches["Speler2"] == s1))
+        ) &
+        (matches["Periode"] == per)
+    ].shape[0] < 2
 
 # ======================
 # MENU
@@ -91,7 +99,6 @@ menu = st.sidebar.radio("📊 Menu", [
     "🎮 Match",
     "🏆 Ranking",
     "📊 Stats",
-    "🧮 Handicap berekenen",
     "👑 Kampioenschap"
 ])
 
@@ -99,7 +106,6 @@ menu = st.sidebar.radio("📊 Menu", [
 # HOME
 # ======================
 if menu == "🏠 Home":
-
     st.title("🎱 K.B.C. De Biekens")
 
     col1, col2, col3 = st.columns(3)
@@ -148,10 +154,18 @@ elif menu == "🎮 Match":
     if len(df) > 0:
 
         s1 = st.selectbox("Speler 1", df["Speler"])
-        s2 = st.selectbox("Speler 2", df[df["Speler"] != s1]["Speler"])
+        per = periode(date.today())
 
-        d = st.date_input("Datum", value=date.today())
-        per = periode(d)
+        mogelijke_s2 = [
+            s for s in df["Speler"]
+            if s != s1 and mag_tegen_elkaar(s1, s, per)
+        ]
+
+        if len(mogelijke_s2) == 0:
+            st.warning("Geen tegenstanders beschikbaar (max 2 matches bereikt).")
+            st.stop()
+
+        s2 = st.selectbox("Speler 2", mogelijke_s2)
 
         h1 = st.number_input("Handicap 1", 1)
         h2 = st.number_input("Handicap 2", 1)
@@ -184,7 +198,7 @@ elif menu == "🎮 Match":
             df.at[idx2, "Totaal Beurten"] += beurten
 
             matches.loc[len(matches)] = [
-                str(d), per,
+                str(date.today()), per,
                 s1, s2,
                 h1, h2,
                 c1, c2,
@@ -212,13 +226,11 @@ elif menu == "🏆 Ranking":
         axis=1
     )
 
-    st.dataframe(
-        ranking.sort_values("Handicap", ascending=False),
-        use_container_width=True
-    )
+    st.dataframe(ranking.sort_values("Handicap", ascending=False),
+                 use_container_width=True)
 
 # ======================
-# 📊 STATS
+# STATS
 # ======================
 elif menu == "📊 Stats":
 
@@ -227,28 +239,7 @@ elif menu == "📊 Stats":
     st.dataframe(matches["Winnaar"].value_counts(), use_container_width=True)
 
 # ======================
-# 🧮 HANDICAP PER SPELER
-# ======================
-elif menu == "🧮 Handicap berekenen":
-
-    st.title("🧮 Handicap berekenen")
-
-    speler = st.selectbox("Selecteer speler", df["Speler"])
-
-    data = df[df["Speler"] == speler].iloc[0]
-
-    punten = data["Totaal Punten"]
-    beurten = data["Totaal Beurten"]
-
-    handicap = bereken_handicap(punten, beurten)
-
-    st.metric("Speler", speler)
-    st.metric("Totaal punten", round(punten, 2))
-    st.metric("Totaal beurten", int(beurten))
-    st.success(f"🎯 Handicap: {handicap}")
-
-# ======================
-# 👑 KAMPIOENSCHAP
+# KAMPIOENSCHAP
 # ======================
 elif menu == "👑 Kampioenschap":
 
@@ -266,7 +257,9 @@ elif menu == "👑 Kampioenschap":
 
         data.append({"Speler": s, "Totaal": totaal})
 
-    dfk = pd.DataFrame(data).sort_values("Totaal", ascending=False)
+    dfk = pd.DataFrame(data)
 
-    st.success(f"🏆 Kampioen: {dfk.iloc[0]['Speler']}")
-    st.dataframe(dfk, use_container_width=True)
+    if len(dfk) > 0:
+        dfk = dfk.sort_values("Totaal", ascending=False)
+        st.success(f"🏆 Kampioen: {dfk.iloc[0]['Speler']}")
+        st.dataframe(dfk, use_container_width=True)
