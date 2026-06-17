@@ -50,7 +50,7 @@ for col in ["Beurten", "Punten1", "Punten2"]:
     matches[col] = pd.to_numeric(matches[col], errors="coerce").fillna(0)
 
 # ======================
-# STYLE
+# STYLE (GROEN + GEEL CLUB THEMA)
 # ======================
 st.markdown("""
 <style>
@@ -66,19 +66,17 @@ h2, h3 { color: #f5d77b; }
 # ======================
 # FUNCTIONS
 # ======================
-
 def punten_win(beurten):
     return round(max(0.2, 10 - (beurten - 1) * 0.2), 2)
 
 def periode(d):
-    m = pd.to_datetime(d).month
-    return "H1" if m <= 6 else "H2"
+    return "H1" if pd.to_datetime(d).month <= 6 else "H2"
 
-# 🎯 NIEUWE FUNCTIE (JOUW FORMULE)
-def speelpunten(gemaakt, beurten):
+# 🎯 BELANGRIJK: HANDICAP FORMULE
+def bereken_handicap(punten, beurten):
     if beurten == 0:
         return 0
-    return round((gemaakt / beurten) * 25, 3)
+    return round((punten / beurten) * 25, 3)
 
 # ======================
 # MENU
@@ -89,7 +87,7 @@ menu = st.sidebar.radio("📊 Menu", [
     "🎮 Match",
     "🏆 Ranking",
     "📊 Stats",
-    "🧮 Speelpunten calculator",
+    "🧮 Handicap berekenen",
     "👑 Kampioenschap"
 ])
 
@@ -217,31 +215,28 @@ elif menu == "📊 Stats":
 
     st.title("📊 Stats")
 
-    if len(matches) == 0:
-        st.info("Geen data")
-        st.stop()
-
-    st.subheader("🏆 Meeste wins")
     st.dataframe(matches["Winnaar"].value_counts(), use_container_width=True)
 
 # ======================
-# 🧮 NIEUWE PAGINA: SPEELPUNTEN CALCULATOR
+# 🧮 HANDICAP CALCULATOR PER SPELER
 # ======================
-elif menu == "🧮 Speelpunten calculator":
+elif menu == "🧮 Handicap berekenen":
 
-    st.title("🧮 Speelpunten calculator")
+    st.title("🧮 Handicap berekenen")
 
-    col1, col2 = st.columns(2)
+    speler = st.selectbox("Selecteer speler", df["Speler"])
 
-    with col1:
-        gemaakt = st.number_input("Gemaakte punten", min_value=0)
+    data = df[df["Speler"] == speler].iloc[0]
 
-    with col2:
-        beurten = st.number_input("Beurten gespeeld", min_value=1)
+    punten = data["Totaal Punten"]
+    beurten = data["Totaal Beurten"]
 
-    resultaat = speelpunten(gemaakt, beurten)
+    handicap = bereken_handicap(punten, beurten)
 
-    st.success(f"🎯 Speelpunten: {resultaat}")
+    st.metric("Speler", speler)
+    st.metric("Totaal punten", round(punten, 2))
+    st.metric("Totaal beurten", int(beurten))
+    st.success(f"🎯 Nieuwe handicap: {handicap}")
 
 # ======================
 # 👑 KAMPIOENSCHAP
