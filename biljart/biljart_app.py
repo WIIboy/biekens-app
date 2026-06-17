@@ -66,12 +66,19 @@ h2, h3 { color: #f5d77b; }
 # ======================
 # FUNCTIONS
 # ======================
+
 def punten_win(beurten):
     return round(max(0.2, 10 - (beurten - 1) * 0.2), 2)
 
 def periode(d):
     m = pd.to_datetime(d).month
     return "H1" if m <= 6 else "H2"
+
+# 🎯 NIEUWE FUNCTIE (JOUW FORMULE)
+def speelpunten(gemaakt, beurten):
+    if beurten == 0:
+        return 0
+    return round((gemaakt / beurten) * 25, 3)
 
 # ======================
 # MENU
@@ -82,6 +89,7 @@ menu = st.sidebar.radio("📊 Menu", [
     "🎮 Match",
     "🏆 Ranking",
     "📊 Stats",
+    "🧮 Speelpunten calculator",
     "👑 Kampioenschap"
 ])
 
@@ -216,43 +224,24 @@ elif menu == "📊 Stats":
     st.subheader("🏆 Meeste wins")
     st.dataframe(matches["Winnaar"].value_counts(), use_container_width=True)
 
-    # ======================
-    # ⚡ KORTSTE MATCH PER SPELER (TABEL)
-    # ======================
-    st.subheader("⚡ Kortste match per speler")
+# ======================
+# 🧮 NIEUWE PAGINA: SPEELPUNTEN CALCULATOR
+# ======================
+elif menu == "🧮 Speelpunten calculator":
 
-    spelers = set(matches["Speler1"]).union(set(matches["Speler2"]))
+    st.title("🧮 Speelpunten calculator")
 
-    rows = []
+    col1, col2 = st.columns(2)
 
-    for s in spelers:
+    with col1:
+        gemaakt = st.number_input("Gemaakte punten", min_value=0)
 
-        sub = matches[
-            (
-                ((matches["Speler1"] == s) | (matches["Speler2"] == s)) &
-                (matches["Winnaar"] == s)
-            )
-        ]
+    with col2:
+        beurten = st.number_input("Beurten gespeeld", min_value=1)
 
-        if len(sub) > 0:
+    resultaat = speelpunten(gemaakt, beurten)
 
-            kort = sub.sort_values("Beurten").iloc[0]
-
-            punten = kort["Punten1"] if kort["Speler1"] == s else kort["Punten2"]
-
-            rows.append({
-                "Speler": s,
-                "Beurten": kort["Beurten"],
-                "Punten": round(punten, 2)
-            })
-
-    df_kort = pd.DataFrame(rows)
-
-    if len(df_kort) > 0:
-        df_kort = df_kort.sort_values("Beurten")
-        st.dataframe(df_kort, use_container_width=True, hide_index=True)
-    else:
-        st.info("Geen data beschikbaar")
+    st.success(f"🎯 Speelpunten: {resultaat}")
 
 # ======================
 # 👑 KAMPIOENSCHAP
