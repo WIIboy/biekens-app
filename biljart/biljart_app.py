@@ -16,7 +16,7 @@ PLAYERS_FILE = "spelers.csv"
 MATCHES_FILE = "wedstrijden.csv"
 
 # ======================
-# SAFE SAVE FUNCTION (BELANGRIJK)
+# SAFE SAVE (BELANGRIJK)
 # ======================
 def safe_save(df, path):
     tmp = path + ".tmp"
@@ -32,7 +32,7 @@ if not os.path.exists(PLAYERS_FILE):
         "Wedstrijden",
         "Totaal Punten",
         "Totaal Beurten"
-    ]).to_csv(PLAYERS_FILE, index=False, encoding='utf-8')
+    ]).to_csv(PLAYERS_FILE, index=False, encoding="utf-8")
 
 if not os.path.exists(MATCHES_FILE):
     pd.DataFrame(columns=[
@@ -43,13 +43,13 @@ if not os.path.exists(MATCHES_FILE):
         "Beurten",
         "Winnaar",
         "Punten1", "Punten2"
-    ]).to_csv(MATCHES_FILE, index=False, encoding='utf-8')
+    ]).to_csv(MATCHES_FILE, index=False, encoding="utf-8")
 
-df = pd.read_csv(PLAYERS_FILE)
-matches = pd.read_csv(MATCHES_FILE)
+df = pd.read_csv(PLAYERS_FILE, encoding="utf-8")
+matches = pd.read_csv(MATCHES_FILE, encoding="utf-8")
 
 # ======================
-# SAFE NUMERIC FIX
+# FIX DATA TYPES (CRUCIAAL)
 # ======================
 def to_num(x):
     try:
@@ -57,9 +57,13 @@ def to_num(x):
     except:
         return 0.0
 
-for col in ["Totaal Punten", "Totaal Beurten", "Wedstrijden"]:
+for col in ["Wedstrijden", "Totaal Punten", "Totaal Beurten"]:
     if col in df.columns:
-        df[col] = df[col].apply(to_num)
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+for col in ["Beurten", "Punten1", "Punten2"]:
+    if col in matches.columns:
+        matches[col] = pd.to_numeric(matches[col], errors="coerce").fillna(0)
 
 # ======================
 # FUNCTIONS
@@ -100,7 +104,7 @@ if menu == "🏠 Home":
     col3.metric("Totaal punten", int(df["Totaal Punten"].sum()))
 
 # ======================
-# 👤 SPELERS
+# SPELERS
 # ======================
 elif menu == "👤 Spelers":
     st.title("👤 Spelersbeheer")
@@ -139,11 +143,11 @@ elif menu == "👤 Spelers":
             safe_save(df, PLAYERS_FILE)
             safe_save(matches, MATCHES_FILE)
 
-            st.success("Speler verwijderd")
+            st.success("Speler + matches verwijderd")
             st.rerun()
 
 # ======================
-# 🎮 MATCH INVOER (MET DATUM)
+# MATCH INVOER (MET DATUM)
 # ======================
 elif menu == "🎮 Match invoeren":
     st.title("🎮 Match invoeren")
@@ -179,11 +183,11 @@ elif menu == "🎮 Match invoeren":
                 p1 = punten_verlies(p_win, c1, h1)
                 df.at[idx2, "Wedstrijden"] += 1
 
-            df.at[idx1, "Totaal Punten"] = to_num(df.at[idx1, "Totaal Punten"]) + p1
-            df.at[idx2, "Totaal Punten"] = to_num(df.at[idx2, "Totaal Punten"]) + p2
+            df.at[idx1, "Totaal Punten"] = float(df.at[idx1, "Totaal Punten"]) + p1
+            df.at[idx2, "Totaal Punten"] = float(df.at[idx2, "Totaal Punten"]) + p2
 
-            df.at[idx1, "Totaal Beurten"] = to_num(df.at[idx1, "Totaal Beurten"]) + beurten
-            df.at[idx2, "Totaal Beurten"] = to_num(df.at[idx2, "Totaal Beurten"]) + beurten
+            df.at[idx1, "Totaal Beurten"] = float(df.at[idx1, "Totaal Beurten"]) + beurten
+            df.at[idx2, "Totaal Beurten"] = float(df.at[idx2, "Totaal Beurten"]) + beurten
 
             safe_save(df, PLAYERS_FILE)
 
@@ -207,3 +211,80 @@ elif menu == "🎮 Match invoeren":
 
             st.success("Match opgeslagen")
             st.rerun()
+
+# ======================
+# RANKING
+# ======================
+elif menu == "🏆 Ranking":
+    st.title("🏆 Ranking")
+
+    ranking = df.copy()
+
+    ranking["Moyenne"] = ranking["Totaal Punten"] / ranking["Totaal Beurten"].replace(0, 1)
+    ranking["Handicap"] = (ranking["Moyenne"] * 25).round().astype(int)
+
+    ranking = ranking.sort_values("Handicap", ascending=False)
+
+    st.dataframe(ranking, use_container_width=True, hide_index=True)
+
+# ======================
+# STATS
+# ======================
+elif menu == "📊 Stats":
+    st.title("📊 Statistieken")
+
+    if len(matches) == 0:
+        st.info("Geen data")
+        st.stop()
+
+    st.subheader("🏆 Meeste wins")
+    st.dataframe(matches["Winnaar"].value_counts(), use_container_width=True)
+
+    if len(matches) > 0:
+        kortste = matches.loc[matches["Beurten"].idxmin()]
+
+        st.markdown("### ⚡ Kortste partij")
+
+        st.dataframe(pd.DataFrame([{
+            "Speler 1": kortste["Speler1"],
+            "Speler 2": kortste["Speler2"],
+            "Beurten": int(kortste["Beurten"]),
+            "Winnaar": kortste["Winnaar"]
+        }]), use_container_width=True, hide_index=True)
+
+# ======================
+# KAMPIOENSCHAP
+# ======================
+elif menu == "👑 Kampioenschap":
+    st.title("👑 Kampioenschap")
+
+    if len(matches) == 0:
+        st.info("Geen data")
+        st.stop()
+
+    spelers = set(matches["Speler1"]).union(set(matches["Speler2"]))
+
+    def totaal(df_, speler):
+        return (
+            df_.loc[df_["Speler1"] == speler, "Punten1"].sum() +
+            df_.loc[df_["Speler2"] == speler, "Punten2"].sum()
+        )
+
+    data = []
+
+    for s in spelers:
+        h1 = matches[matches["Periode"] == "H1"]
+        h2 = matches[matches["Periode"] == "H2"]
+
+        data.append({
+            "Speler": s,
+            "H1": totaal(h1, s),
+            "H2": totaal(h2, s),
+            "Totaal": totaal(matches, s)
+        })
+
+    df_kamp = pd.DataFrame(data).fillna(0)
+    df_kamp = df_kamp.sort_values("Totaal", ascending=False)
+
+    st.success(f"🏆 Kampioen: {df_kamp.iloc[0]['Speler']}")
+    st.dataframe(df_kamp, use_container_width=True)
