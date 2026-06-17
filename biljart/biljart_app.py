@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
-from datetime import datetime, date
+from datetime import date
 
 st.set_page_config(
     page_title="🎱 K.B.C. De Biekens",
@@ -41,18 +41,16 @@ df = pd.read_csv(PLAYERS_FILE)
 matches = pd.read_csv(MATCHES_FILE)
 
 # ======================
-# SAFE NUMERIC
+# SAFE NUMBERS
 # ======================
 for col in ["Totaal Punten", "Totaal Beurten", "Wedstrijden"]:
-    if col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
 for col in ["Beurten", "Punten1", "Punten2"]:
-    if col in matches.columns:
-        matches[col] = pd.to_numeric(matches[col], errors="coerce").fillna(0)
+    matches[col] = pd.to_numeric(matches[col], errors="coerce").fillna(0)
 
 # ======================
-# STYLE (groen + goud)
+# STYLE
 # ======================
 st.markdown("""
 <style>
@@ -66,14 +64,8 @@ h2, h3 { color: #f5d77b; }
 """, unsafe_allow_html=True)
 
 # ======================
-# FUNCTIES
+# FUNCTIONS
 # ======================
-def to_num(x):
-    try:
-        return float(x)
-    except:
-        return 0.0
-
 def punten_win(beurten):
     return round(max(0.2, 10 - (beurten - 1) * 0.2), 2)
 
@@ -97,6 +89,7 @@ menu = st.sidebar.radio("📊 Menu", [
 # HOME
 # ======================
 if menu == "🏠 Home":
+
     st.title("🎱 K.B.C. De Biekens")
 
     col1, col2, col3 = st.columns(3)
@@ -207,10 +200,10 @@ elif menu == "🏆 Ranking":
     ranking["Moyenne"] = ranking["Totaal Punten"] / ranking["Totaal Beurten"].replace(0, 1)
     ranking["Handicap"] = (ranking["Moyenne"] * 25).round(2)
 
-    st.dataframe(ranking.sort_values("Handicap", ascending=False))
+    st.dataframe(ranking.sort_values("Handicap", ascending=False), use_container_width=True)
 
 # ======================
-# STATS
+# 📊 STATS
 # ======================
 elif menu == "📊 Stats":
 
@@ -221,14 +214,16 @@ elif menu == "📊 Stats":
         st.stop()
 
     st.subheader("🏆 Meeste wins")
-    st.dataframe(matches["Winnaar"].value_counts())
+    st.dataframe(matches["Winnaar"].value_counts(), use_container_width=True)
 
     # ======================
-    # ⚡ KORTSTE MATCH PER SPELER (ONDER ELKAAR)
+    # ⚡ KORTSTE MATCH PER SPELER (TABEL)
     # ======================
-    st.subheader("⚡ Kortste gewonnen match per speler")
+    st.subheader("⚡ Kortste match per speler")
 
     spelers = set(matches["Speler1"]).union(set(matches["Speler2"]))
+
+    rows = []
 
     for s in spelers:
 
@@ -240,22 +235,27 @@ elif menu == "📊 Stats":
         ]
 
         if len(sub) > 0:
+
             kort = sub.sort_values("Beurten").iloc[0]
 
-            tegenstander = kort["Speler2"] if kort["Speler1"] == s else kort["Speler1"]
             punten = kort["Punten1"] if kort["Speler1"] == s else kort["Punten2"]
 
-            st.markdown(f"""
-### 🎱 {s}
-- 🆚 Tegenstander: {tegenstander}  
-- 🎯 Beurten: {kort['Beurten']}  
-- 📅 Datum: {kort['Datum']}  
-- 🏆 Winnaar: {kort['Winnaar']}  
-- 📊 Punten: {punten}
-""")
+            rows.append({
+                "Speler": s,
+                "Beurten": kort["Beurten"],
+                "Punten": round(punten, 2)
+            })
+
+    df_kort = pd.DataFrame(rows)
+
+    if len(df_kort) > 0:
+        df_kort = df_kort.sort_values("Beurten")
+        st.dataframe(df_kort, use_container_width=True, hide_index=True)
+    else:
+        st.info("Geen data beschikbaar")
 
 # ======================
-# KAMPIOENSCHAP
+# 👑 KAMPIOENSCHAP
 # ======================
 elif menu == "👑 Kampioenschap":
 
@@ -276,4 +276,4 @@ elif menu == "👑 Kampioenschap":
     dfk = pd.DataFrame(data).sort_values("Totaal", ascending=False)
 
     st.success(f"🏆 Kampioen: {dfk.iloc[0]['Speler']}")
-    st.dataframe(dfk)
+    st.dataframe(dfk, use_container_width=True)
