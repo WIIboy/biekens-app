@@ -16,7 +16,7 @@ PLAYERS_FILE = "spelers.csv"
 MATCHES_FILE = "wedstrijden.csv"
 
 # ======================
-# INIT FILES (SAFE)
+# INIT FILES
 # ======================
 if not os.path.exists(PLAYERS_FILE):
     pd.DataFrame(columns=[
@@ -42,7 +42,7 @@ df = pd.read_csv(PLAYERS_FILE)
 matches = pd.read_csv(MATCHES_FILE)
 
 # ======================
-# SAFE NUMERIC CLEANUP
+# SAFE NUMBERS
 # ======================
 def to_num(x):
     try:
@@ -55,12 +55,8 @@ for col in ["Totaal Punten", "Totaal Beurten", "Wedstrijden", "Handicap"]:
         df[col] = 0
     df[col] = df[col].apply(to_num)
 
-for col in ["Beurten", "Punten1", "Punten2"]:
-    if col in matches.columns:
-        matches[col] = matches[col].apply(to_num)
-
 # ======================
-# STYLE
+# STYLE (groen/geel)
 # ======================
 st.markdown("""
 <style>
@@ -85,7 +81,7 @@ def periode(d):
 def handicap_calc(punten, beurten):
     if beurten == 0:
         return 0
-    return round((punten / beurten) * 25, 3)
+    return round((float(punten) / float(beurten)) * 25, 3)
 
 # ======================
 # MENU
@@ -96,7 +92,8 @@ menu = st.sidebar.radio("📊 Menu", [
     "🎮 Match",
     "🏆 Ranking",
     "📊 Stats",
-    "🧮 Handicap calculator"
+    "👑 Kampioenschap",
+    "🧮 Calculator"
 ])
 
 # ======================
@@ -115,7 +112,7 @@ if menu == "🏠 Home":
 # ======================
 elif menu == "👤 Spelers":
 
-    st.title("👤 Spelersbeheer")
+    st.title("👤 Spelers")
 
     naam = st.text_input("Nieuwe speler")
 
@@ -202,7 +199,7 @@ elif menu == "🎮 Match":
             st.rerun()
 
 # ======================
-# 🏆 RANKING (FIXED)
+# 🏆 RANKING
 # ======================
 elif menu == "🏆 Ranking":
 
@@ -219,7 +216,7 @@ elif menu == "🏆 Ranking":
     )
 
 # ======================
-# 📊 STATS + KORTSTE PARTIJ
+# 📊 STATS
 # ======================
 elif menu == "📊 Stats":
 
@@ -236,25 +233,54 @@ elif menu == "📊 Stats":
 
     kortste = matches.loc[matches["Beurten"].idxmin()]
 
-    st.dataframe(pd.DataFrame([{
-        "Speler 1": kortste["Speler1"],
-        "Speler 2": kortste["Speler2"],
-        "Beurten": kortste["Beurten"],
-        "Winnaar": kortste["Winnaar"],
-        "Punten 1": kortste["Punten1"],
-        "Punten 2": kortste["Punten2"]
-    }]), use_container_width=True)
+    # 🔥 VERTICALE TABEL (zoals jij wil)
+    st.dataframe(pd.DataFrame([
+        {"Eigenschap": "Speler 1", "Waarde": kortste["Speler1"]},
+        {"Eigenschap": "Speler 2", "Waarde": kortste["Speler2"]},
+        {"Eigenschap": "Beurten", "Waarde": kortste["Beurten"]},
+        {"Eigenschap": "Winnaar", "Waarde": kortste["Winnaar"]},
+        {"Eigenschap": "Punten 1", "Waarde": kortste["Punten1"]},
+        {"Eigenschap": "Punten 2", "Waarde": kortste["Punten2"]},
+    ]), use_container_width=True, hide_index=True)
 
 # ======================
-# 🧮 HANDICAP CALCULATOR (NEW)
+# 👑 KAMPIOENSCHAP
 # ======================
-elif menu == "🧮 Handicap calculator":
+elif menu == "👑 Kampioenschap":
 
-    st.title("🧮 Handmatige handicap berekening")
+    st.title("👑 Kampioenschap")
 
-    punten = st.number_input("Gemaakte punten", 0.0)
-    beurten = st.number_input("Beurten gespeeld", 1)
+    if len(matches) == 0:
+        st.warning("Geen data")
+        st.stop()
 
-    if st.button("Bereken handicap"):
-        result = handicap_calc(punten, beurten)
-        st.success(f"🎯 Handicap = {result}")
+    spelers = set(matches["Speler1"]).union(set(matches["Speler2"]))
+
+    data = []
+
+    for s in spelers:
+        totaal = (
+            matches[matches["Speler1"] == s]["Punten1"].sum() +
+            matches[matches["Speler2"] == s]["Punten2"].sum()
+        )
+        data.append({"Speler": s, "Totaal": totaal})
+
+    dfk = pd.DataFrame(data).sort_values("Totaal", ascending=False)
+
+    st.success(f"🏆 Kampioen: {dfk.iloc[0]['Speler']}")
+    st.dataframe(dfk, use_container_width=True)
+
+# ======================
+# 🧮 CALCULATOR
+# ======================
+elif menu == "🧮 Calculator":
+
+    st.title("🧮 Handicap calculator")
+
+    speler = st.selectbox("Speler", df["Speler"])
+
+    data = df[df["Speler"] == speler].iloc[0]
+
+    resultaat = handicap_calc(data["Totaal Punten"], data["Totaal Beurten"])
+
+    st.metric("Handicap", resultaat)
