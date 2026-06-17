@@ -55,6 +55,10 @@ for col in ["Totaal Punten", "Totaal Beurten", "Wedstrijden", "Handicap"]:
         df[col] = 0
     df[col] = df[col].apply(to_num)
 
+for col in ["Beurten", "Punten1", "Punten2"]:
+    if col in matches.columns:
+        matches[col] = matches[col].apply(to_num)
+
 # ======================
 # STYLE (groen/geel)
 # ======================
@@ -100,6 +104,7 @@ menu = st.sidebar.radio("📊 Menu", [
 # HOME
 # ======================
 if menu == "🏠 Home":
+
     st.title("🎱 K.B.C. De Biekens")
 
     col1, col2, col3 = st.columns(3)
@@ -216,7 +221,7 @@ elif menu == "🏆 Ranking":
     )
 
 # ======================
-# 📊 STATS
+# 📊 STATS (MET KORTSTE PER SPELER)
 # ======================
 elif menu == "📊 Stats":
 
@@ -229,19 +234,33 @@ elif menu == "📊 Stats":
     st.subheader("🏆 Meeste wins")
     st.dataframe(matches["Winnaar"].value_counts(), use_container_width=True)
 
-    st.subheader("⚡ Kortste partij")
+    st.subheader("⚡ Kortste match PER SPELER")
 
-    kortste = matches.loc[matches["Beurten"].idxmin()]
+    spelers = set(matches["Speler1"]).union(set(matches["Speler2"]))
 
-    # 🔥 VERTICALE TABEL (zoals jij wil)
-    st.dataframe(pd.DataFrame([
-        {"Eigenschap": "Speler 1", "Waarde": kortste["Speler1"]},
-        {"Eigenschap": "Speler 2", "Waarde": kortste["Speler2"]},
-        {"Eigenschap": "Beurten", "Waarde": kortste["Beurten"]},
-        {"Eigenschap": "Winnaar", "Waarde": kortste["Winnaar"]},
-        {"Eigenschap": "Punten 1", "Waarde": kortste["Punten1"]},
-        {"Eigenschap": "Punten 2", "Waarde": kortste["Punten2"]},
-    ]), use_container_width=True, hide_index=True)
+    data = []
+
+    for s in spelers:
+
+        p_matches = matches[
+            (matches["Speler1"] == s) |
+            (matches["Speler2"] == s)
+        ]
+
+        if len(p_matches) > 0:
+            kort = p_matches.loc[p_matches["Beurten"].idxmin()]
+
+            tegenstander = kort["Speler2"] if kort["Speler1"] == s else kort["Speler1"]
+
+            data.append({
+                "Speler": s,
+                "Tegenstander": tegenstander,
+                "Beurten": kort["Beurten"],
+                "Winnaar": kort["Winnaar"],
+                "Punten": kort["Punten1"] if kort["Speler1"] == s else kort["Punten2"]
+            })
+
+    st.dataframe(pd.DataFrame(data), use_container_width=True)
 
 # ======================
 # 👑 KAMPIOENSCHAP
