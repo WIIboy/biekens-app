@@ -16,7 +16,7 @@ PLAYERS_FILE = "spelers.csv"
 MATCHES_FILE = "wedstrijden.csv"
 
 # ======================
-# INIT FILES
+# INIT FILES (SAFE)
 # ======================
 if not os.path.exists(PLAYERS_FILE):
     pd.DataFrame(columns=[
@@ -42,15 +42,22 @@ df = pd.read_csv(PLAYERS_FILE)
 matches = pd.read_csv(MATCHES_FILE)
 
 # ======================
-# SAFE NUMBERS
+# SAFE NUMERIC CLEANUP
 # ======================
+def to_num(x):
+    try:
+        return float(x)
+    except:
+        return 0.0
+
 for col in ["Totaal Punten", "Totaal Beurten", "Wedstrijden", "Handicap"]:
-    if col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    if col not in df.columns:
+        df[col] = 0
+    df[col] = df[col].apply(to_num)
 
 for col in ["Beurten", "Punten1", "Punten2"]:
     if col in matches.columns:
-        matches[col] = pd.to_numeric(matches[col], errors="coerce").fillna(0)
+        matches[col] = matches[col].apply(to_num)
 
 # ======================
 # STYLE
@@ -75,44 +82,10 @@ def punten_win(beurten):
 def periode(d):
     return "H1" if pd.to_datetime(d).month <= 6 else "H2"
 
-def bereken_handicap(punten, beurten):
+def handicap_calc(punten, beurten):
     if beurten == 0:
-        return 0.0
-    return round((float(punten) / float(beurten)) * 25, 3)
-
-# ======================
-# MAX 2 MATCHES PER PAAR PER PERIODE
-# ======================
-def mag_tegen_elkaar(s1, s2, per):
-    return matches[
-        (
-            ((matches["Speler1"] == s1) & (matches["Speler2"] == s2)) |
-            ((matches["Speler1"] == s2) & (matches["Speler2"] == s1))
-        ) &
-        (matches["Periode"] == per)
-    ].shape[0] < 2
-
-# ======================
-# HANDICAP UPDATE (PROMOTIE / DALING LOGICA)
-# ======================
-def update_handicaps(df, periode_type):
-    for i, row in df.iterrows():
-
-        if row["Totaal Beurten"] == 0:
-            continue
-
-        nieuw = (row["Totaal Punten"] / row["Totaal Beurten"]) * 25
-        oud = row["Handicap"]
-
-        # altijd stijgen toegestaan
-        if nieuw > oud:
-            df.at[i, "Handicap"] = round(nieuw, 2)
-
-        # dalen alleen in H2
-        elif periode_type == "H2":
-            df.at[i, "Handicap"] = round(nieuw, 2)
-
-    return df
+        return 0
+    return round((punten / beurten) * 25, 3)
 
 # ======================
 # MENU
@@ -123,14 +96,13 @@ menu = st.sidebar.radio("📊 Menu", [
     "🎮 Match",
     "🏆 Ranking",
     "📊 Stats",
-    "👑 Kampioenschap"
+    "🧮 Handicap calculator"
 ])
 
 # ======================
 # HOME
 # ======================
 if menu == "🏠 Home":
-
     st.title("🎱 K.B.C. De Biekens")
 
     col1, col2, col3 = st.columns(3)
@@ -164,7 +136,6 @@ elif menu == "👤 Spelers":
                 (matches["Speler1"] != delsp) &
                 (matches["Speler2"] != delsp)
             ]
-
             df.to_csv(PLAYERS_FILE, index=False)
             matches.to_csv(MATCHES_FILE, index=False)
             st.rerun()
@@ -179,18 +150,10 @@ elif menu == "🎮 Match":
     if len(df) > 0:
 
         s1 = st.selectbox("Speler 1", df["Speler"])
-        per = periode(date.today())
+        s2 = st.selectbox("Speler 2", df[df["Speler"] != s1]["Speler"])
 
-        mogelijke = [
-            s for s in df["Speler"]
-            if s != s1 and mag_tegen_elkaar(s1, s, per)
-        ]
-
-        if len(mogelijke) == 0:
-            st.warning("Geen beschikbare tegenstanders meer (max 2 matches).")
-            st.stop()
-
-        s2 = st.selectbox("Speler 2", mogelijke)
+        d = date.today()
+        per = periode(d)
 
         h1 = st.number_input("Handicap 1", 1)
         h2 = st.number_input("Handicap 2", 1)
@@ -198,7 +161,7 @@ elif menu == "🎮 Match":
         c1 = st.number_input("Caramboles 1", 0)
         c2 = st.number_input("Caramboles 2", 0)
 
-        beurten = st.number_input("Beurten winnaar", 1)
+        beurten = st.number_input("Beurten", 1)
         winnaar = st.selectbox("Winnaar", [s1, s2])
 
         if st.button("Opslaan"):
@@ -223,7 +186,7 @@ elif menu == "🎮 Match":
             df.at[idx2, "Totaal Beurten"] += beurten
 
             matches.loc[len(matches)] = [
-                str(date.today()), per,
+                str(d), per,
                 s1, s2,
                 h1, h2,
                 c1, c2,
@@ -232,9 +195,6 @@ elif menu == "🎮 Match":
                 p1, p2
             ]
 
-            # 🔥 UPDATE HANDICAPS
-            df = update_handicaps(df, per)
-
             df.to_csv(PLAYERS_FILE, index=False)
             matches.to_csv(MATCHES_FILE, index=False)
 
@@ -242,11 +202,16 @@ elif menu == "🎮 Match":
             st.rerun()
 
 # ======================
-# RANKING
+# 🏆 RANKING (FIXED)
 # ======================
 elif menu == "🏆 Ranking":
 
     st.title("🏆 Ranking")
+
+    df["Handicap"] = df.apply(
+        lambda r: handicap_calc(r["Totaal Punten"], r["Totaal Beurten"]),
+        axis=1
+    )
 
     st.dataframe(
         df.sort_values("Handicap", ascending=False),
@@ -254,36 +219,42 @@ elif menu == "🏆 Ranking":
     )
 
 # ======================
-# STATS
+# 📊 STATS + KORTSTE PARTIJ
 # ======================
 elif menu == "📊 Stats":
 
     st.title("📊 Stats")
 
+    if len(matches) == 0:
+        st.warning("Geen data")
+        st.stop()
+
+    st.subheader("🏆 Meeste wins")
     st.dataframe(matches["Winnaar"].value_counts(), use_container_width=True)
 
+    st.subheader("⚡ Kortste partij")
+
+    kortste = matches.loc[matches["Beurten"].idxmin()]
+
+    st.dataframe(pd.DataFrame([{
+        "Speler 1": kortste["Speler1"],
+        "Speler 2": kortste["Speler2"],
+        "Beurten": kortste["Beurten"],
+        "Winnaar": kortste["Winnaar"],
+        "Punten 1": kortste["Punten1"],
+        "Punten 2": kortste["Punten2"]
+    }]), use_container_width=True)
+
 # ======================
-# KAMPIOENSCHAP
+# 🧮 HANDICAP CALCULATOR (NEW)
 # ======================
-elif menu == "👑 Kampioenschap":
+elif menu == "🧮 Handicap calculator":
 
-    st.title("👑 Kampioenschap")
+    st.title("🧮 Handmatige handicap berekening")
 
-    spelers = set(matches["Speler1"]).union(set(matches["Speler2"]))
+    punten = st.number_input("Gemaakte punten", 0.0)
+    beurten = st.number_input("Beurten gespeeld", 1)
 
-    data = []
-
-    for s in spelers:
-        totaal = (
-            matches[matches["Speler1"] == s]["Punten1"].sum() +
-            matches[matches["Speler2"] == s]["Punten2"].sum()
-        )
-
-        data.append({"Speler": s, "Totaal": totaal})
-
-    dfk = pd.DataFrame(data)
-
-    if len(dfk) > 0:
-        dfk = dfk.sort_values("Totaal", ascending=False)
-        st.success(f"🏆 Kampioen: {dfk.iloc[0]['Speler']}")
-        st.dataframe(dfk, use_container_width=True)
+    if st.button("Bereken handicap"):
+        result = handicap_calc(punten, beurten)
+        st.success(f"🎯 Handicap = {result}")
