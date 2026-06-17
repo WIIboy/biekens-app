@@ -43,12 +43,6 @@ matches = pd.read_csv(MATCHES_FILE)
 # ======================
 # SAFE NUMERIC
 # ======================
-def to_num(x):
-    try:
-        return float(x)
-    except:
-        return 0.0
-
 for col in ["Totaal Punten", "Totaal Beurten", "Wedstrijden"]:
     if col in df.columns:
         df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
@@ -58,44 +52,7 @@ for col in ["Beurten", "Punten1", "Punten2"]:
         matches[col] = pd.to_numeric(matches[col], errors="coerce").fillna(0)
 
 # ======================
-# 🎱 THISSEN OFFICIËLE TABEL (UITBREIDBAAR)
-# ======================
-THISSEN = {
-    # voorbeeldwaarden (jij vult later volledig boekje aan)
-    16: 2.051,
-    17: 2.179,
-    77: 9.872
-}
-
-def thissen_score(gemaakt, target):
-    """
-    Officiële lookup (geen gokken)
-    """
-    if gemaakt in THISSEN:
-        return THISSEN[gemaakt]
-
-    # fallback (veilig, maar niet officieel)
-    if target == 0:
-        return 0
-
-    ratio = gemaakt / target
-    return round(ratio * 10, 3)
-
-# ======================
-# BEURTEN TABEL (OFFICIEEL)
-# ======================
-def beurt_score(beurten):
-    return round(max(0.2, 10 - (beurten - 1) * 0.2), 3)
-
-# ======================
-# PERIODE
-# ======================
-def periode(d):
-    m = pd.to_datetime(d).month
-    return "H1" if m <= 6 else "H2"
-
-# ======================
-# STYLE (GROEN + GOUD CLUB)
+# STYLE (groen + goud)
 # ======================
 st.markdown("""
 <style>
@@ -107,6 +64,22 @@ h1 { color: #d4af37; }
 h2, h3 { color: #f5d77b; }
 </style>
 """, unsafe_allow_html=True)
+
+# ======================
+# FUNCTIES
+# ======================
+def to_num(x):
+    try:
+        return float(x)
+    except:
+        return 0.0
+
+def punten_win(beurten):
+    return round(max(0.2, 10 - (beurten - 1) * 0.2), 2)
+
+def periode(d):
+    m = pd.to_datetime(d).month
+    return "H1" if m <= 6 else "H2"
 
 # ======================
 # MENU
@@ -135,6 +108,7 @@ if menu == "🏠 Home":
 # SPELERS
 # ======================
 elif menu == "👤 Spelers":
+
     st.title("👤 Spelers")
 
     naam = st.text_input("Nieuwe speler")
@@ -165,6 +139,7 @@ elif menu == "👤 Spelers":
 # MATCH
 # ======================
 elif menu == "🎮 Match":
+
     st.title("🎮 Match invoeren")
 
     if len(df) > 0:
@@ -189,18 +164,14 @@ elif menu == "🎮 Match":
             idx1 = df.index[df["Speler"] == s1][0]
             idx2 = df.index[df["Speler"] == s2][0]
 
-            # 🎱 THISSEN SCORE
-            p1 = thissen_score(c1, h1)
-            p2 = thissen_score(c2, h2)
-
-            # winnaar krijgt bonus via beurten
-            bonus = beurt_score(beurten)
+            p1 = 0
+            p2 = 0
 
             if winnaar == s1:
-                p1 += bonus
+                p1 = punten_win(beurten)
                 df.at[idx1, "Wedstrijden"] += 1
             else:
-                p2 += bonus
+                p2 = punten_win(beurten)
                 df.at[idx2, "Wedstrijden"] += 1
 
             df.at[idx1, "Totaal Punten"] += p1
@@ -229,6 +200,7 @@ elif menu == "🎮 Match":
 # RANKING
 # ======================
 elif menu == "🏆 Ranking":
+
     st.title("🏆 Ranking")
 
     ranking = df.copy()
@@ -241,6 +213,7 @@ elif menu == "🏆 Ranking":
 # STATS
 # ======================
 elif menu == "📊 Stats":
+
     st.title("📊 Stats")
 
     if len(matches) == 0:
@@ -250,21 +223,42 @@ elif menu == "📊 Stats":
     st.subheader("🏆 Meeste wins")
     st.dataframe(matches["Winnaar"].value_counts())
 
-    st.subheader("⚡ Kortste match")
-    kort = matches.sort_values("Beurten").iloc[0]
+    # ======================
+    # ⚡ KORTSTE MATCH PER SPELER (ONDER ELKAAR)
+    # ======================
+    st.subheader("⚡ Kortste gewonnen match per speler")
 
-    st.dataframe(pd.DataFrame([{
-        "Winnaar": kort["Winnaar"],
-        "Speler1": kort["Speler1"],
-        "Speler2": kort["Speler2"],
-        "Beurten": kort["Beurten"],
-        "Datum": kort["Datum"]
-    }]))
+    spelers = set(matches["Speler1"]).union(set(matches["Speler2"]))
+
+    for s in spelers:
+
+        sub = matches[
+            (
+                ((matches["Speler1"] == s) | (matches["Speler2"] == s)) &
+                (matches["Winnaar"] == s)
+            )
+        ]
+
+        if len(sub) > 0:
+            kort = sub.sort_values("Beurten").iloc[0]
+
+            tegenstander = kort["Speler2"] if kort["Speler1"] == s else kort["Speler1"]
+            punten = kort["Punten1"] if kort["Speler1"] == s else kort["Punten2"]
+
+            st.markdown(f"""
+### 🎱 {s}
+- 🆚 Tegenstander: {tegenstander}  
+- 🎯 Beurten: {kort['Beurten']}  
+- 📅 Datum: {kort['Datum']}  
+- 🏆 Winnaar: {kort['Winnaar']}  
+- 📊 Punten: {punten}
+""")
 
 # ======================
 # KAMPIOENSCHAP
 # ======================
 elif menu == "👑 Kampioenschap":
+
     st.title("👑 Kampioenschap")
 
     spelers = set(matches["Speler1"]).union(set(matches["Speler2"]))
