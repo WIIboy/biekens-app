@@ -18,11 +18,9 @@ scope = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-creds = Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"],
-    scopes=scope
-)
-
+import json
+info = json.loads(st.secrets["gcp_service_account"]["json_key"])
+creds = Credentials.from_service_account_info(info, scopes=scope)
 client = gspread.authorize(creds)
 
 SPREADSHEET_NAME = "Biekens Data"  # 👈 PAS DIT AAN NAAR JE ECHTE SHEET NAAM
