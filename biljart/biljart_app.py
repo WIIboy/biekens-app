@@ -30,7 +30,7 @@ ws_players = spreadsheet.worksheet("Spelers")
 ws_matches = spreadsheet.worksheet("Wedstrijden")
 
 # ======================
-# SAFE LOAD (BELANGRIJK FIX)
+# SAFE LOAD
 # ======================
 def load_players():
     df = pd.DataFrame(ws_players.get_all_records())
@@ -40,12 +40,11 @@ def load_players():
             "Speler", "Wedstrijden", "Totaal Punten", "Totaal Beurten", "Handicap"
         ])
 
-    # 🔥 HARD FIX: alles numeriek maken
+    # 🔥 HARD CLEAN: alles numeriek forceren
     num_cols = ["Wedstrijden", "Totaal Punten", "Totaal Beurten", "Handicap"]
 
     for col in num_cols:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+        df[col] = pd.to_numeric(df.get(col, 0), errors="coerce").fillna(0).astype(float)
 
     return df
 
@@ -63,6 +62,7 @@ def load_matches():
 def save_matches(df):
     ws_matches.clear()
     ws_matches.update([df.columns.tolist()] + df.values.tolist())
+
 
 df = load_players()
 matches = load_matches()
@@ -84,44 +84,41 @@ h2, h3 { color: #f5d77b; }
 # ======================
 # FORMULES
 # ======================
-def bereken_nieuw_punten(punten, beurten):
-    return round((punten / beurten) * 25, 3)
+def bereken_handicap(punten, beurten):
+    return round((punten / beurten) * 25, 3) if beurten > 0 else 0
 
 def punten_win(beurten):
     return round(max(0.2, 10 - (beurten - 1) * 0.2), 2)
 
-# 🔥 SAFE GET (BELANGRIJK)
-def get_num(row, col):
-    try:
-        return float(row[col])
-    except:
-        return 0.0
-
-def update_player(speler, punten_toevoeging, beurten_toevoeging, wedstrijd_win=False):
+# ======================
+# ULTRA SAFE UPDATE (🔥 BELANGRIJK)
+# ======================
+def update_player(speler, punten_toevoeging, beurten_toevoeging, win=False):
     global df
 
     idx = df.index[df["Speler"] == speler][0]
 
-    # huidige waarden veilig ophalen
-    huidige_punten = get_num(df.loc[idx], "Totaal Punten")
-    huidige_beurten = get_num(df.loc[idx], "Totaal Beurten")
-    huidige_wedstrijden = get_num(df.loc[idx], "Wedstrijden")
+    row = df.loc[idx].copy()
+
+    # safe numeric conversion
+    wedstrijden = float(row["Wedstrijden"])
+    punten = float(row["Totaal Punten"])
+    beurten = float(row["Totaal Beurten"])
 
     # updates
-    df.loc[idx, "Totaal Punten"] = huidige_punten + punten_toevoeging
-    df.loc[idx, "Totaal Beurten"] = huidige_beurten + beurten_toevoeging
+    if win:
+        wedstrijden += 1
 
-    if wedstrijd_win:
-        df.loc[idx, "Wedstrijden"] = huidige_wedstrijden + 1
+    punten += float(punten_toevoeging)
+    beurten += float(beurten_toevoeging)
 
-    # handicap herberekenen
-    if (huidige_beurten + beurten_toevoeging) > 0:
-        df.loc[idx, "Handicap"] = bereken_nieuw_punten(
-            df.loc[idx, "Totaal Punten"],
-            df.loc[idx, "Totaal Beurten"]
-        )
-    else:
-        df.loc[idx, "Handicap"] = 0
+    handicap = bereken_handicap(punten, beurten)
+
+    # schrijf volledige rij terug (VEILIGER dan cell updates)
+    df.loc[idx, "Wedstrijden"] = wedstrijden
+    df.loc[idx, "Totaal Punten"] = punten
+    df.loc[idx, "Totaal Beurten"] = beurten
+    df.loc[idx, "Handicap"] = handicap
 
 # ======================
 # MENU
