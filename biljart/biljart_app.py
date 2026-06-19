@@ -1,4 +1,4 @@
-import streamlit as st
+pythonimport streamlit as st
 import pandas as pd
 import json
 from datetime import date
@@ -109,7 +109,7 @@ def punten_win(beurten):
     return round(max(0.2, 10 - (beurten - 1) * 0.2), 2)
 
 # ======================
-# SAFE PLAYER UPDATE (🔥 NO LOC/AT)
+# SAFE PLAYER UPDATE (Opgelost met .at)
 # ======================
 def update_player(speler, punten_toevoeging, beurten_toevoeging, win=False):
 
@@ -132,14 +132,11 @@ def update_player(speler, punten_toevoeging, beurten_toevoeging, win=False):
 
     h = handicap(p, b)
 
-    # 🔥 replace full row (SAFE)
-    df.loc[idx] = [
-        speler,
-        w,
-        p,
-        b,
-        h
-    ]
+    # Cel voor cel bijwerken voorkomt dtype conflicten in Pandas
+    df.at[idx, "Wedstrijden"] = int(w) if df["Wedstrijden"].dtype == "int64" else w
+    df.at[idx, "Totaal Punten"] = float(p)
+    df.at[idx, "Totaal Beurten"] = int(b) if df["Totaal Beurten"].dtype == "int64" else b
+    df.at[idx, "Handicap"] = float(h)
 
 # ======================
 # MENU
@@ -172,7 +169,9 @@ elif menu == "👤 Spelers":
 
     if st.button("Toevoegen"):
         if naam and naam not in df["Speler"].values:
-            df.loc[len(df)] = [naam, 0, 0, 0, 0]
+            # Veilige manier om een rij toe te voegen via pd.concat
+            new_player = pd.DataFrame([[naam, 0, 0, 0, 0]], columns=PLAYER_COLS)
+            df = pd.concat([df, new_player], ignore_index=True)
             save_players(df)
             st.rerun()
 
