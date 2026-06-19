@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 # ======================
-# GOOGLE SHEETS CONNECT
+# GOOGLE SHEETS
 # ======================
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -30,39 +30,63 @@ ws_players = spreadsheet.worksheet("Spelers")
 ws_matches = spreadsheet.worksheet("Wedstrijden")
 
 # ======================
-# SAFE LOAD
+# MATCH SCHEMA (🔥 FIX)
+# ======================
+MATCH_COLUMNS = [
+    "Datum",
+    "Speler1",
+    "Speler2",
+    "Handicap1",
+    "Handicap2",
+    "Caramboles1",
+    "Caramboles2",
+    "Beurten",
+    "Winnaar",
+    "Punten1",
+    "Punten2"
+]
+
+PLAYER_COLUMNS = [
+    "Speler",
+    "Wedstrijden",
+    "Totaal Punten",
+    "Totaal Beurten",
+    "Handicap"
+]
+
+# ======================
+# LOAD PLAYERS
 # ======================
 def load_players():
     df = pd.DataFrame(ws_players.get_all_records())
 
     if df.empty:
-        df = pd.DataFrame(columns=[
-            "Speler", "Wedstrijden", "Totaal Punten", "Totaal Beurten", "Handicap"
-        ])
+        df = pd.DataFrame(columns=PLAYER_COLUMNS)
 
-    # 🔥 HARD CLEAN: alles numeriek forceren
-    num_cols = ["Wedstrijden", "Totaal Punten", "Totaal Beurten", "Handicap"]
-
-    for col in num_cols:
-        df[col] = pd.to_numeric(df.get(col, 0), errors="coerce").fillna(0).astype(float)
+    for col in PLAYER_COLUMNS[1:]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
     return df
 
+# ======================
+# LOAD MATCHES (🔥 FIX)
+# ======================
+def load_matches():
+    df = pd.DataFrame(ws_matches.get_all_records())
+
+    if df.empty:
+        df = pd.DataFrame(columns=MATCH_COLUMNS)
+
+    return df
 
 def save_players(df):
     ws_players.clear()
     ws_players.update([df.columns.tolist()] + df.values.tolist())
 
-
-def load_matches():
-    df = pd.DataFrame(ws_matches.get_all_records())
-    return df.fillna(0)
-
-
 def save_matches(df):
     ws_matches.clear()
     ws_matches.update([df.columns.tolist()] + df.values.tolist())
-
 
 df = load_players()
 matches = load_matches()
@@ -84,41 +108,34 @@ h2, h3 { color: #f5d77b; }
 # ======================
 # FORMULES
 # ======================
-def bereken_handicap(punten, beurten):
+def handicap(punten, beurten):
     return round((punten / beurten) * 25, 3) if beurten > 0 else 0
 
 def punten_win(beurten):
     return round(max(0.2, 10 - (beurten - 1) * 0.2), 2)
 
 # ======================
-# ULTRA SAFE UPDATE (🔥 BELANGRIJK)
+# SAFE PLAYER UPDATE
 # ======================
-def update_player(speler, punten_toevoeging, beurten_toevoeging, win=False):
+def update_player(speler, punten, beurten, win=False):
     global df
 
     idx = df.index[df["Speler"] == speler][0]
 
-    row = df.loc[idx].copy()
+    w = float(df.at[idx, "Wedstrijden"])
+    p = float(df.at[idx, "Totaal Punten"])
+    b = float(df.at[idx, "Totaal Beurten"])
 
-    # safe numeric conversion
-    wedstrijden = float(row["Wedstrijden"])
-    punten = float(row["Totaal Punten"])
-    beurten = float(row["Totaal Beurten"])
-
-    # updates
     if win:
-        wedstrijden += 1
+        w += 1
 
-    punten += float(punten_toevoeging)
-    beurten += float(beurten_toevoeging)
+    p += float(punten)
+    b += float(beurten)
 
-    handicap = bereken_handicap(punten, beurten)
-
-    # schrijf volledige rij terug (VEILIGER dan cell updates)
-    df.loc[idx, "Wedstrijden"] = wedstrijden
-    df.loc[idx, "Totaal Punten"] = punten
-    df.loc[idx, "Totaal Beurten"] = beurten
-    df.loc[idx, "Handicap"] = handicap
+    df.at[idx, "Wedstrijden"] = w
+    df.at[idx, "Totaal Punten"] = p
+    df.at[idx, "Totaal Beurten"] = b
+    df.at[idx, "Handicap"] = handicap(p, b)
 
 # ======================
 # MENU
@@ -189,10 +206,13 @@ elif menu == "🎮 Match":
 
             save_players(df)
 
-            matches.loc[len(matches)] = [
+            # 🔥 SAFE MATCH APPEND (FIX)
+            new_match = pd.DataFrame([[ 
                 str(date.today()),
                 s1, s2, h1, h2, c1, c2, beurten, winnaar, p1, p2
-            ]
+            ]], columns=MATCH_COLUMNS)
+
+            matches = pd.concat([matches, new_match], ignore_index=True)
 
             save_matches(matches)
 
@@ -203,7 +223,6 @@ elif menu == "🎮 Match":
 # RANKING
 # ======================
 elif menu == "🏆 Ranking":
-
     st.title("🏆 Ranking")
     st.dataframe(df.sort_values("Handicap", ascending=False))
 
