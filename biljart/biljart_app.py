@@ -30,63 +30,57 @@ ws_players = spreadsheet.worksheet("Spelers")
 ws_matches = spreadsheet.worksheet("Wedstrijden")
 
 # ======================
-# MATCH SCHEMA (🔥 FIX)
+# SCHEMAS
 # ======================
-MATCH_COLUMNS = [
-    "Datum",
-    "Speler1",
-    "Speler2",
-    "Handicap1",
-    "Handicap2",
-    "Caramboles1",
-    "Caramboles2",
-    "Beurten",
-    "Winnaar",
-    "Punten1",
-    "Punten2"
-]
+PLAYER_COLS = ["Speler", "Wedstrijden", "Totaal Punten", "Totaal Beurten", "Handicap"]
 
-PLAYER_COLUMNS = [
-    "Speler",
-    "Wedstrijden",
-    "Totaal Punten",
-    "Totaal Beurten",
-    "Handicap"
+MATCH_COLS = [
+    "Datum", "Speler1", "Speler2",
+    "Handicap1", "Handicap2",
+    "Caramboles1", "Caramboles2",
+    "Beurten", "Winnaar",
+    "Punten1", "Punten2"
 ]
 
 # ======================
-# LOAD PLAYERS
+# LOAD SAFE
 # ======================
 def load_players():
     df = pd.DataFrame(ws_players.get_all_records())
 
     if df.empty:
-        df = pd.DataFrame(columns=PLAYER_COLUMNS)
+        df = pd.DataFrame(columns=PLAYER_COLS)
 
-    for col in PLAYER_COLUMNS[1:]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    for c in PLAYER_COLS[1:]:
+        df[c] = pd.to_numeric(df.get(c, 0), errors="coerce").fillna(0)
 
     return df
 
-# ======================
-# LOAD MATCHES (🔥 FIX)
-# ======================
+
 def load_matches():
     df = pd.DataFrame(ws_matches.get_all_records())
 
     if df.empty:
-        df = pd.DataFrame(columns=MATCH_COLUMNS)
+        df = pd.DataFrame(columns=MATCH_COLS)
 
     return df
 
+
 def save_players(df):
+    df = df.copy()
+
+    # force numeric cleanup before save
+    for c in PLAYER_COLS[1:]:
+        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
+
     ws_players.clear()
     ws_players.update([df.columns.tolist()] + df.values.tolist())
+
 
 def save_matches(df):
     ws_matches.clear()
     ws_matches.update([df.columns.tolist()] + df.values.tolist())
+
 
 df = load_players()
 matches = load_matches()
@@ -115,27 +109,37 @@ def punten_win(beurten):
     return round(max(0.2, 10 - (beurten - 1) * 0.2), 2)
 
 # ======================
-# SAFE PLAYER UPDATE
+# SAFE PLAYER UPDATE (🔥 NO LOC/AT)
 # ======================
-def update_player(speler, punten, beurten, win=False):
+def update_player(speler, punten_toevoeging, beurten_toevoeging, win=False):
+
     global df
 
     idx = df.index[df["Speler"] == speler][0]
 
-    w = float(df.at[idx, "Wedstrijden"])
-    p = float(df.at[idx, "Totaal Punten"])
-    b = float(df.at[idx, "Totaal Beurten"])
+    row = df.iloc[idx].to_dict()
+
+    # safe numeric conversion
+    w = float(row["Wedstrijden"])
+    p = float(row["Totaal Punten"])
+    b = float(row["Totaal Beurten"])
 
     if win:
         w += 1
 
-    p += float(punten)
-    b += float(beurten)
+    p += float(punten_toevoeging)
+    b += float(beurten_toevoeging)
 
-    df.at[idx, "Wedstrijden"] = w
-    df.at[idx, "Totaal Punten"] = p
-    df.at[idx, "Totaal Beurten"] = b
-    df.at[idx, "Handicap"] = handicap(p, b)
+    h = handicap(p, b)
+
+    # 🔥 replace full row (SAFE)
+    df.loc[idx] = [
+        speler,
+        w,
+        p,
+        b,
+        h
+    ]
 
 # ======================
 # MENU
@@ -167,11 +171,10 @@ elif menu == "👤 Spelers":
     naam = st.text_input("Nieuwe speler")
 
     if st.button("Toevoegen"):
-        if naam:
-            if naam.lower() not in df["Speler"].astype(str).str.lower().values:
-                df.loc[len(df)] = [naam, 0, 0, 0, 0]
-                save_players(df)
-                st.rerun()
+        if naam and naam not in df["Speler"].values:
+            df.loc[len(df)] = [naam, 0, 0, 0, 0]
+            save_players(df)
+            st.rerun()
 
 # ======================
 # MATCH
@@ -206,11 +209,10 @@ elif menu == "🎮 Match":
 
             save_players(df)
 
-            # 🔥 SAFE MATCH APPEND (FIX)
             new_match = pd.DataFrame([[ 
                 str(date.today()),
                 s1, s2, h1, h2, c1, c2, beurten, winnaar, p1, p2
-            ]], columns=MATCH_COLUMNS)
+            ]], columns=MATCH_COLS)
 
             matches = pd.concat([matches, new_match], ignore_index=True)
 
