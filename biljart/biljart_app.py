@@ -30,21 +30,33 @@ ws_players = spreadsheet.worksheet("Spelers")
 ws_matches = spreadsheet.worksheet("Wedstrijden")
 
 # ======================
-# LOAD / SAVE SAFE
+# SAFE LOAD (🔥 FIX HIER)
 # ======================
 def load_players():
     df = pd.DataFrame(ws_players.get_all_records())
-    if "Handicap" not in df.columns:
-        df["Handicap"] = 0
-    return df.fillna(0)
+
+    if df.empty:
+        df = pd.DataFrame(columns=[
+            "Speler", "Wedstrijden", "Totaal Punten", "Totaal Beurten", "Handicap"
+        ])
+
+    # 🔥 alles numeriek maken (BELANGRIJK)
+    for col in ["Wedstrijden", "Totaal Punten", "Totaal Beurten", "Handicap"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
+    return df
+
 
 def save_players(df):
     ws_players.clear()
     ws_players.update([df.columns.tolist()] + df.values.tolist())
 
+
 def load_matches():
     df = pd.DataFrame(ws_matches.get_all_records())
     return df.fillna(0)
+
 
 def save_matches(df):
     ws_matches.clear()
@@ -68,7 +80,7 @@ h2, h3 { color: #f5d77b; }
 """, unsafe_allow_html=True)
 
 # ======================
-# FORMULE
+# FORMULES
 # ======================
 def bereken_nieuw_punten(punten, beurten):
     return round((punten / beurten) * 25, 3)
@@ -79,8 +91,8 @@ def punten_win(beurten):
 def update_handicap(speler):
     idx = df.index[df["Speler"] == speler][0]
 
-    punten = df.at[idx, "Totaal Punten"]
-    beurten = df.at[idx, "Totaal Beurten"]
+    punten = float(df.at[idx, "Totaal Punten"])
+    beurten = float(df.at[idx, "Totaal Beurten"])
 
     if beurten > 0:
         nieuw = bereken_nieuw_punten(punten, beurten)
@@ -108,9 +120,7 @@ menu = st.sidebar.radio("📊 Menu", [
 # HOME
 # ======================
 if menu == "🏠 Home":
-
     st.title("🎱 K.B.C. De Biekens")
-
     st.metric("Spelers", len(df))
     st.metric("Wedstrijden", len(matches))
 
@@ -125,21 +135,10 @@ elif menu == "👤 Spelers":
 
     if st.button("Toevoegen"):
         if naam:
-            if len(df) == 0 or naam.lower() not in df["Speler"].str.lower().values:
+            if naam.lower() not in df["Speler"].astype(str).str.lower().values:
                 df.loc[len(df)] = [naam, 0, 0, 0, 0]
                 save_players(df)
-                st.success("Toegevoegd")
                 st.rerun()
-
-    st.divider()
-
-    if len(df) > 0:
-        del_speler = st.selectbox("Verwijder speler", df["Speler"])
-
-        if st.button("Verwijderen"):
-            df = df[df["Speler"] != del_speler]
-            save_players(df)
-            st.rerun()
 
 # ======================
 # MATCH
@@ -172,16 +171,16 @@ elif menu == "🎮 Match":
             p1 = p_win if winnaar == s1 else 0
             p2 = p_win if winnaar == s2 else 0
 
-            df.at[idx1, "Wedstrijden"] += 1 if winnaar == s1 else 0
-            df.at[idx2, "Wedstrijden"] += 1 if winnaar == s2 else 0
+            # 🔥 FIX: force float
+            df.at[idx1, "Wedstrijden"] = float(df.at[idx1, "Wedstrijden"]) + (1 if winnaar == s1 else 0)
+            df.at[idx2, "Wedstrijden"] = float(df.at[idx2, "Wedstrijden"]) + (1 if winnaar == s2 else 0)
 
-            df.at[idx1, "Totaal Punten"] += p1
-            df.at[idx2, "Totaal Punten"] += p2
+            df.at[idx1, "Totaal Punten"] = float(df.at[idx1, "Totaal Punten"]) + p1
+            df.at[idx2, "Totaal Punten"] = float(df.at[idx2, "Totaal Punten"]) + p2
 
-            df.at[idx1, "Totaal Beurten"] += beurten
-            df.at[idx2, "Totaal Beurten"] += beurten
+            df.at[idx1, "Totaal Beurten"] = float(df.at[idx1, "Totaal Beurten"]) + beurten
+            df.at[idx2, "Totaal Beurten"] = float(df.at[idx2, "Totaal Beurten"]) + beurten
 
-            # 🔥 UPDATE HANDICAP (BELANGRIJK)
             update_handicap(s1)
             update_handicap(s2)
 
@@ -189,16 +188,7 @@ elif menu == "🎮 Match":
 
             matches.loc[len(matches)] = [
                 str(date.today()),
-                s1,
-                s2,
-                h1,
-                h2,
-                c1,
-                c2,
-                beurten,
-                winnaar,
-                p1,
-                p2
+                s1, s2, h1, h2, c1, c2, beurten, winnaar, p1, p2
             ]
 
             save_matches(matches)
@@ -210,19 +200,8 @@ elif menu == "🎮 Match":
 # RANKING
 # ======================
 elif menu == "🏆 Ranking":
-
     st.title("🏆 Ranking")
-
     st.dataframe(df.sort_values("Handicap", ascending=False))
-
-# ======================
-# KAMPIOENSCHAP
-# ======================
-elif menu == "👑 Kampioenschap":
-
-    st.title("👑 Kampioenschap")
-
-    st.write(matches)
 
 # ======================
 # HANDICAP
@@ -236,13 +215,3 @@ elif menu == "🧮 Handicap":
     r = df[df["Speler"] == speler].iloc[0]
 
     st.metric("Nieuw aantal punten te spelen", r["Handicap"])
-
-    st.divider()
-
-    st.subheader("Test berekening")
-
-    punten = st.number_input("Totaal punten", 0.0)
-    beurten = st.number_input("Beurten", 1)
-
-    if beurten > 0:
-        st.info(round((punten / beurten) * 25, 3))
