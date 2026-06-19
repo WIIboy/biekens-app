@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import json
 from datetime import date
 import gspread
 from google.oauth2.service_account import Credentials
@@ -18,12 +19,11 @@ scope = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-import json
 info = json.loads(st.secrets["gcp_service_account"]["json_key"])
 creds = Credentials.from_service_account_info(info, scopes=scope)
+
 client = gspread.authorize(creds)
 
-SPREADSHEET_NAME = "Biekens Data"  # 
 spreadsheet = client.open_by_key("1o-llMtZRjt9EN1ZF_D7ITtLJCq3CG_1lDXhprRSrZgw")
 
 ws_players = spreadsheet.worksheet("Spelers")
@@ -90,7 +90,8 @@ menu = st.sidebar.radio("📊 Menu", [
     "👤 Spelers",
     "🎮 Match",
     "🏆 Ranking",
-    "👑 Kampioenschap"
+    "👑 Kampioenschap",
+    "🧮 Handicap"
 ])
 
 
@@ -243,3 +244,18 @@ elif menu == "👑 Kampioenschap":
         dfk = pd.DataFrame(data).sort_values("Totaal", ascending=False)
 
         st.dataframe(dfk)
+
+
+# ======================
+# HANDICAP CALCULATOR
+# ======================
+elif menu == "🧮 Handicap":
+
+    st.title("🧮 Handicap berekening")
+
+    punten = st.number_input("Totaal gemaakte punten", min_value=0.0, step=0.01)
+    beurten = st.number_input("Totaal gespeelde beurten", min_value=1)
+
+    if beurten > 0:
+        result = round((punten / beurten) * 25, 3)
+        st.success(f"Nieuw handicap punt: **{result}**")
