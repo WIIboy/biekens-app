@@ -68,22 +68,29 @@ h2, h3 { color: #f5d77b; }
 """, unsafe_allow_html=True)
 
 # ======================
-# BILJART FUNCTIES
+# FORMULE
 # ======================
+def bereken_nieuw_punten(punten, beurten):
+    return round((punten / beurten) * 25, 3)
+
 def punten_win(beurten):
     return round(max(0.2, 10 - (beurten - 1) * 0.2), 2)
 
-def handicap(punten, beurten):
-    return round((punten / beurten) * 25, 3) if beurten > 0 else 0
-
-
 def update_handicap(speler):
-    """berekent en slaat handicap op in sheet"""
     idx = df.index[df["Speler"] == speler][0]
-    h = handicap(df.at[idx, "Totaal Punten"], df.at[idx, "Totaal Beurten"])
-    df.at[idx, "Handicap"] = h
+
+    punten = df.at[idx, "Totaal Punten"]
+    beurten = df.at[idx, "Totaal Beurten"]
+
+    if beurten > 0:
+        nieuw = bereken_nieuw_punten(punten, beurten)
+    else:
+        nieuw = 0
+
+    df.at[idx, "Handicap"] = nieuw
     save_players(df)
-    return h
+
+    return nieuw
 
 # ======================
 # MENU
@@ -101,7 +108,9 @@ menu = st.sidebar.radio("📊 Menu", [
 # HOME
 # ======================
 if menu == "🏠 Home":
+
     st.title("🎱 K.B.C. De Biekens")
+
     st.metric("Spelers", len(df))
     st.metric("Wedstrijden", len(matches))
 
@@ -123,6 +132,14 @@ elif menu == "👤 Spelers":
                 st.rerun()
 
     st.divider()
+
+    if len(df) > 0:
+        del_speler = st.selectbox("Verwijder speler", df["Speler"])
+
+        if st.button("Verwijderen"):
+            df = df[df["Speler"] != del_speler]
+            save_players(df)
+            st.rerun()
 
 # ======================
 # MATCH
@@ -164,7 +181,7 @@ elif menu == "🎮 Match":
             df.at[idx1, "Totaal Beurten"] += beurten
             df.at[idx2, "Totaal Beurten"] += beurten
 
-            # 🔥 UPDATE HANDICAP DIRECT
+            # 🔥 UPDATE HANDICAP (BELANGRIJK)
             update_handicap(s1)
             update_handicap(s2)
 
@@ -214,18 +231,18 @@ elif menu == "🧮 Handicap":
 
     st.title("🧮 Handicap berekening")
 
-    if len(df) > 0:
+    speler = st.selectbox("Kies speler", df["Speler"])
 
-        speler = st.selectbox("Kies speler", df["Speler"])
+    r = df[df["Speler"] == speler].iloc[0]
 
-        r = df[df["Speler"] == speler].iloc[0]
+    st.metric("Nieuw aantal punten te spelen", r["Handicap"])
 
-        st.metric("Handicap (opgeslagen)", r["Handicap"])
+    st.divider()
 
-        st.divider()
+    st.subheader("Test berekening")
 
-        punten = st.number_input("Totaal punten (test)", 0.0)
-        beurten = st.number_input("Beurten (test)", 1)
+    punten = st.number_input("Totaal punten", 0.0)
+    beurten = st.number_input("Beurten", 1)
 
-        if beurten > 0:
-            st.info(round((punten / beurten) * 25, 3))
+    if beurten > 0:
+        st.info(round((punten / beurten) * 25, 3))
