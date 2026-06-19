@@ -1,4 +1,4 @@
-pythonimport streamlit as st
+import streamlit as st
 import pandas as pd
 import json
 from datetime import date
