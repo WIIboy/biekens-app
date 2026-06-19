@@ -34,10 +34,11 @@ ws_matches = spreadsheet.worksheet("Wedstrijden")
 # ======================
 def load_players():
     df = pd.DataFrame(ws_players.get_all_records())
+    if "Handicap" not in df.columns:
+        df["Handicap"] = 0
     return df.fillna(0)
 
 def save_players(df):
-    df = df.copy()
     ws_players.clear()
     ws_players.update([df.columns.tolist()] + df.values.tolist())
 
@@ -46,7 +47,6 @@ def load_matches():
     return df.fillna(0)
 
 def save_matches(df):
-    df = df.copy()
     ws_matches.clear()
     ws_matches.update([df.columns.tolist()] + df.values.tolist())
 
@@ -68,13 +68,22 @@ h2, h3 { color: #f5d77b; }
 """, unsafe_allow_html=True)
 
 # ======================
-# BILJART PUNTEN
+# BILJART FUNCTIES
 # ======================
 def punten_win(beurten):
     return round(max(0.2, 10 - (beurten - 1) * 0.2), 2)
 
 def handicap(punten, beurten):
     return round((punten / beurten) * 25, 3) if beurten > 0 else 0
+
+
+def update_handicap(speler):
+    """berekent en slaat handicap op in sheet"""
+    idx = df.index[df["Speler"] == speler][0]
+    h = handicap(df.at[idx, "Totaal Punten"], df.at[idx, "Totaal Beurten"])
+    df.at[idx, "Handicap"] = h
+    save_players(df)
+    return h
 
 # ======================
 # MENU
@@ -92,9 +101,7 @@ menu = st.sidebar.radio("📊 Menu", [
 # HOME
 # ======================
 if menu == "🏠 Home":
-
     st.title("🎱 K.B.C. De Biekens")
-
     st.metric("Spelers", len(df))
     st.metric("Wedstrijden", len(matches))
 
@@ -110,23 +117,12 @@ elif menu == "👤 Spelers":
     if st.button("Toevoegen"):
         if naam:
             if len(df) == 0 or naam.lower() not in df["Speler"].str.lower().values:
-                df.loc[len(df)] = [naam, 0, 0, 0]
+                df.loc[len(df)] = [naam, 0, 0, 0, 0]
                 save_players(df)
                 st.success("Toegevoegd")
                 st.rerun()
-            else:
-                st.warning("Speler bestaat al")
 
     st.divider()
-
-    if len(df) > 0:
-
-        del_speler = st.selectbox("Verwijder speler", df["Speler"])
-
-        if st.button("Verwijderen"):
-            df = df[df["Speler"] != del_speler]
-            save_players(df)
-            st.rerun()
 
 # ======================
 # MATCH
@@ -168,6 +164,10 @@ elif menu == "🎮 Match":
             df.at[idx1, "Totaal Beurten"] += beurten
             df.at[idx2, "Totaal Beurten"] += beurten
 
+            # 🔥 UPDATE HANDICAP DIRECT
+            update_handicap(s1)
+            update_handicap(s2)
+
             save_players(df)
 
             matches.loc[len(matches)] = [
@@ -196,14 +196,7 @@ elif menu == "🏆 Ranking":
 
     st.title("🏆 Ranking")
 
-    if len(df) > 0:
-
-        df["Handicap"] = df.apply(
-            lambda r: handicap(r["Totaal Punten"], r["Totaal Beurten"]),
-            axis=1
-        )
-
-        st.dataframe(df.sort_values("Handicap", ascending=False))
+    st.dataframe(df.sort_values("Handicap", ascending=False))
 
 # ======================
 # KAMPIOENSCHAP
@@ -212,30 +205,10 @@ elif menu == "👑 Kampioenschap":
 
     st.title("👑 Kampioenschap")
 
-    if len(matches) > 0:
-
-        spelers = set(matches["Speler1"]).union(set(matches["Speler2"]))
-
-        data = []
-
-        for s in spelers:
-
-            totaal = (
-                matches[matches["Speler1"] == s]["Punten1"].sum() +
-                matches[matches["Speler2"] == s]["Punten2"].sum()
-            )
-
-            data.append({
-                "Speler": s,
-                "Totaal": totaal
-            })
-
-        dfk = pd.DataFrame(data).sort_values("Totaal", ascending=False)
-
-        st.dataframe(dfk)
+    st.write(matches)
 
 # ======================
-# HANDICAP CALCULATOR
+# HANDICAP
 # ======================
 elif menu == "🧮 Handicap":
 
@@ -247,22 +220,12 @@ elif menu == "🧮 Handicap":
 
         r = df[df["Speler"] == speler].iloc[0]
 
-        st.subheader(f"Statistieken van {speler}")
+        st.metric("Handicap (opgeslagen)", r["Handicap"])
 
-        st.write(f"Totaal punten: {r['Totaal Punten']}")
-        st.write(f"Totaal beurten: {r['Totaal Beurten']}")
+        st.divider()
 
-        if r["Totaal Beurten"] > 0:
-            result = handicap(r["Totaal Punten"], r["Totaal Beurten"])
-            st.success(f"Handicap van {speler}: **{result}**")
+        punten = st.number_input("Totaal punten (test)", 0.0)
+        beurten = st.number_input("Beurten (test)", 1)
 
-    st.divider()
-
-    st.subheader("Manuele berekening")
-
-    punten = st.number_input("Totaal gemaakte punten", min_value=0.0, step=0.01)
-    beurten = st.number_input("Totaal gespeelde beurten", min_value=1)
-
-    if beurten > 0:
-        result = round((punten / beurten) * 25, 3)
-        st.info(f"Nieuw handicap punt: **{result}**")
+        if beurten > 0:
+            st.info(round((punten / beurten) * 25, 3))
