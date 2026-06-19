@@ -23,8 +23,8 @@ info = json.loads(st.secrets["gcp_service_account"]["json_key"])
 creds = Credentials.from_service_account_info(info, scopes=scope)
 client = gspread.authorize(creds)
 
-SPREADSHEET_NAME = "Biekens Data"  # 👈 PAS DIT AAN NAAR JE ECHTE SHEET NAAM
-spreadsheet = client.open(SPREADSHEET_NAME)
+SPREADSHEET_NAME = "Biekens Data"  # 
+spreadsheet = client.open_by_key("1o-llMtZRjt9EN1ZF_D7ITtLJCq3CG_1lDXhprRSrZgw")
 
 ws_players = spreadsheet.worksheet("Spelers")
 ws_matches = spreadsheet.worksheet("Wedstrijden")
