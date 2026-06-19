@@ -15,8 +15,8 @@ st.set_page_config(
 # GOOGLE SHEETS
 # ======================
 scope = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
+    "https://googleapis.com",
+    "https://googleapis.com"
 ]
 
 info = json.loads(st.secrets["gcp_service_account"]["json_key"])
@@ -133,9 +133,9 @@ def update_player(speler, punten_toevoeging, beurten_toevoeging, win=False):
     h = handicap(p, b)
 
     # Cel voor cel bijwerken voorkomt dtype conflicten in Pandas
-    df.at[idx, "Wedstrijden"] = int(w) if df["Wedstrijden"].dtype == "int64" else w
+    df.at[idx, "Wedstrijden"] = int(w)
     df.at[idx, "Totaal Punten"] = float(p)
-    df.at[idx, "Totaal Beurten"] = int(b) if df["Totaal Beurten"].dtype == "int64" else b
+    df.at[idx, "Totaal Beurten"] = int(b)
     df.at[idx, "Handicap"] = float(h)
 
 # ======================
