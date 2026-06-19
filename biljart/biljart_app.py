@@ -29,7 +29,6 @@ spreadsheet = client.open_by_key("1o-llMtZRjt9EN1ZF_D7ITtLJCq3CG_1lDXhprRSrZgw")
 ws_players = spreadsheet.worksheet("Spelers")
 ws_matches = spreadsheet.worksheet("Wedstrijden")
 
-
 # ======================
 # LOAD / SAVE SAFE
 # ======================
@@ -42,7 +41,6 @@ def save_players(df):
     ws_players.clear()
     ws_players.update([df.columns.tolist()] + df.values.tolist())
 
-
 def load_matches():
     df = pd.DataFrame(ws_matches.get_all_records())
     return df.fillna(0)
@@ -52,10 +50,8 @@ def save_matches(df):
     ws_matches.clear()
     ws_matches.update([df.columns.tolist()] + df.values.tolist())
 
-
 df = load_players()
 matches = load_matches()
-
 
 # ======================
 # STYLE
@@ -71,7 +67,6 @@ h2, h3 { color: #f5d77b; }
 </style>
 """, unsafe_allow_html=True)
 
-
 # ======================
 # BILJART PUNTEN
 # ======================
@@ -80,7 +75,6 @@ def punten_win(beurten):
 
 def handicap(punten, beurten):
     return round((punten / beurten) * 25, 3) if beurten > 0 else 0
-
 
 # ======================
 # MENU
@@ -94,7 +88,6 @@ menu = st.sidebar.radio("📊 Menu", [
     "🧮 Handicap"
 ])
 
-
 # ======================
 # HOME
 # ======================
@@ -104,7 +97,6 @@ if menu == "🏠 Home":
 
     st.metric("Spelers", len(df))
     st.metric("Wedstrijden", len(matches))
-
 
 # ======================
 # SPELERS
@@ -135,7 +127,6 @@ elif menu == "👤 Spelers":
             df = df[df["Speler"] != del_speler]
             save_players(df)
             st.rerun()
-
 
 # ======================
 # MATCH
@@ -198,7 +189,6 @@ elif menu == "🎮 Match":
             st.success("Match opgeslagen")
             st.rerun()
 
-
 # ======================
 # RANKING
 # ======================
@@ -214,7 +204,6 @@ elif menu == "🏆 Ranking":
         )
 
         st.dataframe(df.sort_values("Handicap", ascending=False))
-
 
 # ======================
 # KAMPIOENSCHAP
@@ -245,7 +234,6 @@ elif menu == "👑 Kampioenschap":
 
         st.dataframe(dfk)
 
-
 # ======================
 # HANDICAP CALCULATOR
 # ======================
@@ -253,9 +241,28 @@ elif menu == "🧮 Handicap":
 
     st.title("🧮 Handicap berekening")
 
+    if len(df) > 0:
+
+        speler = st.selectbox("Kies speler", df["Speler"])
+
+        r = df[df["Speler"] == speler].iloc[0]
+
+        st.subheader(f"Statistieken van {speler}")
+
+        st.write(f"Totaal punten: {r['Totaal Punten']}")
+        st.write(f"Totaal beurten: {r['Totaal Beurten']}")
+
+        if r["Totaal Beurten"] > 0:
+            result = handicap(r["Totaal Punten"], r["Totaal Beurten"])
+            st.success(f"Handicap van {speler}: **{result}**")
+
+    st.divider()
+
+    st.subheader("Manuele berekening")
+
     punten = st.number_input("Totaal gemaakte punten", min_value=0.0, step=0.01)
     beurten = st.number_input("Totaal gespeelde beurten", min_value=1)
 
     if beurten > 0:
         result = round((punten / beurten) * 25, 3)
-        st.success(f"Nieuw handicap punt: **{result}**")
+        st.info(f"Nieuw handicap punt: **{result}**")
