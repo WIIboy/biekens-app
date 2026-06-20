@@ -164,14 +164,35 @@ elif menu == "👤 Spelers":
 
     st.title("👤 Spelersbeheer")
 
-    naam = st.text_input("Nieuwe speler")
+    # Toevoegen
+    st.subheader("Speler toevoegen")
+    naam = st.text_input("Naam nieuwe speler")
 
     if st.button("Toevoegen"):
         if naam:
             if naam.lower() not in df["Speler"].astype(str).str.lower().values:
                 df.loc[len(df)] = [naam, 0, 0, 0, 0]
                 save_players(df)
+                st.success(f"{naam} toegevoegd!")
                 st.rerun()
+            else:
+                st.warning("Speler bestaat al.")
+
+    st.divider()
+
+    # Verwijderen
+    st.subheader("Speler verwijderen")
+
+    if len(df) > 0:
+        del_speler = st.selectbox("Kies speler om te verwijderen", df["Speler"])
+
+        if st.button("Verwijderen"):
+            df = df[df["Speler"] != del_speler].reset_index(drop=True)
+            save_players(df)
+            st.success(f"{del_speler} verwijderd!")
+            st.rerun()
+    else:
+        st.info("Geen spelers gevonden.")
 
 # ======================
 # MATCH
