@@ -30,7 +30,7 @@ ws_players = spreadsheet.worksheet("Spelers")
 ws_matches = spreadsheet.worksheet("Wedstrijden")
 
 # ======================
-# MATCH SCHEMA (🔥 FIX)
+# MATCH SCHEMA
 # ======================
 MATCH_COLUMNS = [
     "Datum",
@@ -70,7 +70,7 @@ def load_players():
     return df
 
 # ======================
-# LOAD MATCHES (🔥 FIX)
+# LOAD MATCHES
 # ======================
 def load_matches():
     df = pd.DataFrame(ws_matches.get_all_records())
@@ -206,8 +206,7 @@ elif menu == "🎮 Match":
 
             save_players(df)
 
-            # 🔥 SAFE MATCH APPEND (FIX)
-            new_match = pd.DataFrame([[ 
+            new_match = pd.DataFrame([[
                 str(date.today()),
                 s1, s2, h1, h2, c1, c2, beurten, winnaar, p1, p2
             ]], columns=MATCH_COLUMNS)
@@ -227,13 +226,44 @@ elif menu == "🏆 Ranking":
     st.dataframe(df.sort_values("Handicap", ascending=False))
 
 # ======================
-# HANDICAP
+# KAMPIOENSCHAP
+# ======================
+elif menu == "👑 Kampioenschap":
+
+    st.title("👑 Kampioenschap")
+
+    if len(matches) > 0:
+
+        spelers = set(matches["Speler1"]).union(set(matches["Speler2"]))
+
+        data = []
+
+        for s in spelers:
+
+            totaal = (
+                matches[matches["Speler1"] == s]["Punten1"].sum() +
+                matches[matches["Speler2"] == s]["Punten2"].sum()
+            )
+
+            data.append({
+                "Speler": s,
+                "Totaal": totaal
+            })
+
+        dfk = pd.DataFrame(data).sort_values("Totaal", ascending=False)
+
+        st.dataframe(dfk)
+
+# ======================
+# HANDICAP CALCULATOR
 # ======================
 elif menu == "🧮 Handicap":
 
     st.title("🧮 Handicap berekening")
 
-    speler = st.selectbox("Kies speler", df["Speler"])
-    r = df[df["Speler"] == speler].iloc[0]
+    punten = st.number_input("Totaal gemaakte punten", min_value=0.0, step=0.01)
+    beurten = st.number_input("Totaal gespeelde beurten", min_value=1)
 
-    st.metric("Handicap", r["Handicap"])
+    if beurten > 0:
+        result = round((punten / beurten) * 25, 3)
+        st.success(f"Nieuw handicap punt: **{result}**")
