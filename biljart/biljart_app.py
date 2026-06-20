@@ -261,9 +261,12 @@ elif menu == "🧮 Handicap":
 
     st.title("🧮 Handicap berekening")
 
+    if len(df) > 0:
+        speler = st.selectbox("Kies speler", df["Speler"])
+
     punten = st.number_input("Totaal gemaakte punten", min_value=0.0, step=0.01)
     beurten = st.number_input("Totaal gespeelde beurten", min_value=1)
 
     if beurten > 0:
         result = round((punten / beurten) * 25, 3)
-        st.success(f"Nieuw handicap punt: **{result}**")
+        st.success(f"Nieuw handicap punt voor **{speler}**: **{result}**")
