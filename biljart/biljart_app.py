@@ -164,7 +164,6 @@ elif menu == "👤 Spelers":
 
     st.title("👤 Spelersbeheer")
 
-    # Toevoegen
     st.subheader("Speler toevoegen")
     naam = st.text_input("Naam nieuwe speler")
 
@@ -180,7 +179,6 @@ elif menu == "👤 Spelers":
 
     st.divider()
 
-    # Verwijderen
     st.subheader("Speler verwijderen")
 
     if len(df) > 0:
@@ -285,7 +283,6 @@ elif menu == "🧮 Handicap":
     if len(df) > 0:
         speler = st.selectbox("Kies speler", df["Speler"])
 
-        # Huidige waarden ophalen voor de gekozen speler
         idx = df.index[df["Speler"] == speler][0]
         huidig_punten = float(df.at[idx, "Totaal Punten"])
         huidig_beurten = float(df.at[idx, "Totaal Beurten"])
@@ -303,9 +300,12 @@ elif menu == "🧮 Handicap":
             st.success(f"Nieuw handicap punt voor **{speler}**: **{result}**")
 
             if st.button("Opslaan"):
-                df.at[idx, "Totaal Punten"] = punten
-                df.at[idx, "Totaal Beurten"] = beurten
-                df.at[idx, "Handicap"] = result
+                df["Totaal Punten"] = df["Totaal Punten"].astype(float)
+                df["Totaal Beurten"] = df["Totaal Beurten"].astype(float)
+                df["Handicap"] = df["Handicap"].astype(float)
+                df.at[idx, "Totaal Punten"] = float(punten)
+                df.at[idx, "Totaal Beurten"] = float(beurten)
+                df.at[idx, "Handicap"] = float(result)
                 save_players(df)
                 st.success("Opgeslagen!")
                 st.rerun()
