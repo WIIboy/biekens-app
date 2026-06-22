@@ -285,9 +285,27 @@ elif menu == "🧮 Handicap":
     if len(df) > 0:
         speler = st.selectbox("Kies speler", df["Speler"])
 
-    punten = st.number_input("Totaal gemaakte punten", min_value=0.0, step=0.01)
-    beurten = st.number_input("Totaal gespeelde beurten", min_value=1)
+        # Huidige waarden ophalen voor de gekozen speler
+        idx = df.index[df["Speler"] == speler][0]
+        huidig_punten = float(df.at[idx, "Totaal Punten"])
+        huidig_beurten = float(df.at[idx, "Totaal Beurten"])
+        huidig_handicap = float(df.at[idx, "Handicap"])
 
-    if beurten > 0:
-        result = round((punten / beurten) * 25, 3)
-        st.success(f"Nieuw handicap punt voor **{speler}**: **{result}**")
+        st.info(f"Huidig opgeslagen — Punten: **{huidig_punten}** | Beurten: **{huidig_beurten}** | Handicap: **{huidig_handicap}**")
+
+        st.divider()
+
+        punten = st.number_input("Totaal gemaakte punten", min_value=0.0, step=0.01, value=huidig_punten)
+        beurten = st.number_input("Totaal gespeelde beurten", min_value=1, value=int(huidig_beurten) if huidig_beurten > 0 else 1)
+
+        if beurten > 0:
+            result = round((punten / beurten) * 25, 3)
+            st.success(f"Nieuw handicap punt voor **{speler}**: **{result}**")
+
+            if st.button("Opslaan"):
+                df.at[idx, "Totaal Punten"] = punten
+                df.at[idx, "Totaal Beurten"] = beurten
+                df.at[idx, "Handicap"] = result
+                save_players(df)
+                st.success("Opgeslagen!")
+                st.rerun()
