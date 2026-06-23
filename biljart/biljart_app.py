@@ -65,6 +65,7 @@ def load_players():
 
     for col in PLAYER_COLUMNS[1:]:
         if col in df.columns:
+            df[col] = df[col].astype(str).str.replace(",", ".", regex=False)
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
     return df
@@ -288,7 +289,7 @@ elif menu == "🧮 Handicap":
         huidig_beurten = float(df.at[idx, "Totaal Beurten"])
         huidig_handicap = float(df.at[idx, "Handicap"])
 
-        st.info(f"Huidig opgeslagen — Punten: **{huidig_punten}** | Beurten: **{huidig_beurten}** | Handicap: **{huidig_handicap}**")
+        st.info(f"Huidig opgeslagen — Punten: **{huidig_punten}** | Beurten: **{int(huidig_beurten)}** | Handicap: **{huidig_handicap}**")
 
         st.divider()
 
